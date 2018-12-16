@@ -8,14 +8,27 @@ import statistics
 
 MYNAME = os.path.basename(sys.argv[0])
 
-SIG_LONG = 9999
+SIG_LONG = 69999
 
+DEF_FACTOR = 1.8
+
+FIX_FACTOR = 1.3
+
+STAT_OK		= 0
+STAT_UNKNOWN	= 1
+STAT_WARN	= 10
+STAT_ERR	= 100
+stat_num = STAT_OK
+
+#####
 class IrSig:
     def __init__(self, t1, t2, sym):
         self.t1		= t1
         self.t2		= t2
         self.sym	= sym
 
+#####
+# usage
 def usage():
     print()
     print('Usage:')
@@ -24,15 +37,33 @@ def usage():
     print('$ mode2 | tee filename')
     print('< Push remocon button(s) >')
     print('[Ctrl]-[C]')
-    print('$ %s filename' % MYNAME)
+    print('$ %s filename [factor]' % MYNAME)
     print()
 
+
+# sig[][] -> sig_raw[]
+def sig_to_sig_raw(sig):
+    sig_raw = []
+
+    for idx in range(len(sig['pulse'])):
+        sig_raw.append(sig['pulse'][idx])
+        try:
+            sig_raw.append(sig['space'][idx])
+        except IndexError:
+            break
+
+    return sig_raw
+
+#####
 def main():
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2 or len(sys.argv) > 3:
         usage()
         exit(1)
 
     filename = sys.argv[1]
+    factor = DEF_FACTOR
+    if len(sys.argv) == 3:
+        factor = float(sys.argv[2])
 
     with open(filename, "r") as f:
         line = f.readline()
@@ -46,38 +77,73 @@ def main():
             v = int(value)
             if int(v) > SIG_LONG:
                 v = SIG_LONG
-            sig_raw.append(int(v))
+            #sig_raw.append(int(v))
             sig[key].append(int(v))
 
-    #print(sig_raw)
+    sig_raw = sig_to_sig_raw(sig)
+
     #print(sig)
     #print(min(sig['pulse']), min(sig['space']))
 
-    sig_normalize = { 'pulse': [], 'space': [] }
-    sig_t = {'pulse': [], 'space': []}
-    sig_mode = {'pulse': [], 'space': []}
-
     # normalize
-    for key in ['pulse', 'space']:
-        sig_t[key].append([])
-        sig_t[key].append([])
-        for s in sig[key]:
-            if s < min(sig[key]) * 1.8:
-                sig_t[key][0].append(s)
-            else:
-                sig_t[key][1].append(s)
-        for idx in range(len(sig_t[key])):
-            print('sig_t[%s][%d] = (%d-%d)' % (key, idx, min(sig_t[key][idx]), max(sig_t[key][idx])))
-            #print(sig_t[key][idx])
-            #print()
+    stat_num = STAT_UNKNOWN
+    while stat_num != STAT_OK:
+        sig_normalize = { 'pulse': [], 'space': [] }
+        sig_t = {'pulse': [[], []], 'space': [[], []]}
+        sig_mode = {'pulse': [], 'space': []}
 
-            try:
-                sig_mode[key].append(statistics.mode(sig_t[key][idx]))
-            except statistics.StatisticsError:
-                sig_mode[key].append(round(sum(sig_t[key][idx]) / len(sig_t[key][idx])))
+        stat_num = STAT_OK
+        
+        for key in ['pulse', 'space']:
+            for s in sig[key]:
+                if s < min(sig[key]) * factor:
+                    sig_t[key][0].append(s)
+                else:
+                    sig_t[key][1].append(s)
 
-        print('sig_mode[%s] =' % key, sig_mode[key])
-        print()
+            #print('sig_t[%s]=' % key, sig_t[key])
+        
+            for idx in range(len(sig_t[key])):
+                print('sig_t[%s][%d] = (%d-%d)' % (key, idx, min(sig_t[key][idx]), max(sig_t[key][idx])))
+                #print(sig_t[key][idx])
+                #print()
+                
+                try:
+                    sig_mode[key].append(statistics.mode(sig_t[key][idx]))
+                except statistics.StatisticsError:
+                    sig_mode[key].append(round(sum(sig_t[key][idx]) / len(sig_t[key][idx])))
+
+            print('sig_mode[%s] =' % key, sig_mode[key])
+            print()
+
+            ## check
+            t0_min = min(sig_t[key][0])
+            t0_max = max(sig_t[key][0])
+            t1_min = min(sig_t[key][1])
+            t1_max = max(sig_t[key][1])
+            
+            if t0_max * FIX_FACTOR > t1_min:
+                print('* Error! %d, %d' % (t0_max, t1_min))
+                print()
+                stat_num = STAT_ERR
+
+                ## fix sig[]
+                print('* Fix data ...')
+                print()
+                idx = sig[key].index(t0_min)
+                sig[key][idx] = sig_mode[key][0]
+
+                idx = sig[key].index(t1_min)
+                sig[key][idx] = sig_mode[key][0]
+
+                stat_num = STAT_UNKNOWN
+                #break
+
+    if stat_num != STAT_OK:
+        print('* Error[%d]' % stat_num)
+        sys.exit(1)
+
+    sig_raw = sig_to_sig_raw(sig)
 
     sig_normalize = []
     key = 'pulse'
@@ -100,9 +166,9 @@ def main():
         if  sig_raw[-1] == SIG_LONG:
             sig_raw.pop(-1)
             sig_normalize.pop(-1)
-        print('sig_raw =', sig_raw)
+        #print('sig_raw =', sig_raw)
         sig_normalize.insert(0, round(SIG_LONG / sig_mode['space'][0]))
-        print('sig_normalize =', sig_normalize)
+        #print('sig_normalize =', sig_normalize)
 
     if len(sig_raw) % 2 != 0:
         sig_raw.append(SIG_LONG)
@@ -142,6 +208,7 @@ def main():
 
     print()
     
+    print(sig_ptn)
     ## 信号パターン判定
     ir_sig = {}
 
@@ -226,6 +293,8 @@ def main():
         sym = ir_sig[key].sym
         if sym == '-':
             print()
+        if sym == '*':
+            print(' ', end='')
         print(sym, end='')
         if sym == '0' or sym == '1':
             val = val * 2 + int(sym)
@@ -243,6 +312,7 @@ def main():
                 val_list.append(val)
             if sym == '*':
                 val_list.append(0x100)
+                print(' ', end='')
             elif sym == '-':
                 val_list.append(-1)
             bit_count = 0
@@ -267,7 +337,10 @@ def main():
     print('* hex pattern')
     for v in val_list:
         if v >= 0:
-            print('%02X ' % v, end='')
+            if v <= 0xff:
+                print('%02X ' % v, end='')
+            else:
+                print('* ', end='')
         else:
             print()
     print()
