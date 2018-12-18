@@ -10,7 +10,7 @@ MYNAME		= os.path.basename(sys.argv[0])
 
 SIG_LONG	= 39999
 
-DEF_FACTOR	= 1.8
+DEF_FACTOR	= 1.7
 FIX_FACTOR	= 1.3
 
 STAT_OK		= 0
@@ -216,7 +216,7 @@ def main():
         #print('sig_raw =', sig_raw)
         sig_normalize.insert(0, round(SIG_LONG / sig_mode['space'][0]))
         #print('sig_normalize =', sig_normalize)
-
+    
     if len(sig_raw) % 2 != 0:
         sig_raw.append(SIG_LONG)
         sig_normalize.append(round(SIG_LONG / sig_mode['space'][0]))
@@ -353,12 +353,12 @@ def main():
     for line in sig_list:
         print('#HEX:MSB ', end='')
         for s in line:
-            if s[0] in CHR_ZERO+CHR_ONE:
-                l = re.sub('(\d{8})', '\\1 ', s).split()
+            if s[0] in CHR_ZERO + CHR_ONE:
+                l = re.sub('(\d{4})', '\\1 ', s).split()
                 for h in l:
-                    h += '0000000'
-                    print('%02X ' % int(h[:8], 2), end='')
-                print('', end='')
+                    h += '000'
+                    print('%X' % int(h[:4], 2), end='')
+                print(' ', end='')
             else:
                 print(s + ' ', end='')
         print()
@@ -369,13 +369,13 @@ def main():
     for line in sig_list:
         print('#HEX:LSB ', end='')
         for s in line:
-            if s[0] in '01':
+            if s[0] in CHR_ZERO + CHR_ONE:
                 s = s[::-1]
-                l = re.sub('(\d{8})', '\\1 ', s).split()
+                l = re.sub('(\d{4})', '\\1 ', s).split()
                 for h in l:
-                    h += '0000000'
-                    print('%02X ' % int(h[:8], 2), end='')
-                print('', end='')
+                    h += '000'
+                    print('%X' % int(h[:4], 2), end='')
+                print(' ', end='')
             else:
                 print(s + ' ', end='')
         print()
