@@ -54,6 +54,34 @@ def sig_to_sig_raw(sig):
 
     return sig_raw
 
+# get_mode
+def get_mode(data, a):
+    if len(data) <= 20:
+        print('  data[] =', data)
+
+    data2 = [d for d in data]
+
+    if len(data2) <= 5:
+        return int(round(sum(data2) / len(data2)))
+    
+    data2.remove(min(data2))
+    data2.remove(max(data2))
+    
+    n = int((max(data2) - min(data2)) / a) + 1
+    freq_list = [0] * n
+    sum_list = [0] * n
+    for  d in data2:
+        idx = int((d - min(data2)) / a)
+        freq_list[idx] += 1
+        sum_list[idx] += d
+
+    if len(freq_list) <= 20:
+        print('  freq_list[] =', freq_list)
+    idx = freq_list.index(max(freq_list))
+    ret = sum_list[idx] / freq_list[idx]
+    return int(round(ret))
+        
+
 #####
 def main():
     if len(sys.argv) < 2 or len(sys.argv) > 3:
@@ -69,6 +97,8 @@ def main():
         line = f.readline()
         while not 'space ' in line:
             line = f.readline()
+            if not line:
+                sys.exit(1)
 
         sig_raw = []
         sig = { 'pulse': [], 'space': [] }
@@ -86,34 +116,49 @@ def main():
     #print(min(sig['pulse']), min(sig['space']))
 
     # normalize
-    stat_num = STAT_UNKNOWN
-    while stat_num != STAT_OK:
-        sig_normalize = { 'pulse': [], 'space': [] }
-        sig_t = {'pulse': [[], []], 'space': [[], []]}
-        sig_mode = {'pulse': [], 'space': []}
+    sig_normalize = { 'pulse': [], 'space': [] }
+    sig_t = {'pulse': [[], []], 'space': [[], []]}
+    sig_mode = {'pulse': [], 'space': []}
 
-        stat_num = STAT_OK
-        
-        for key in ['pulse', 'space']:
+    for key in ['pulse', 'space']:
+        stat_num = STAT_UNKNOWN
+        while stat_num != STAT_OK:
+            stat_num = STAT_OK
+            sig_normalize[key] = []
+            sig_t[key] = [[], [], []]
+            sig2 = []
+            sig_mode[key] = []
+            
             for s in sig[key]:
                 if s < min(sig[key]) * factor:
                     sig_t[key][0].append(s)
                 else:
+                    sig2.append(s)
+
+            for s in sig2:
+                if s < min(sig2) * factor:
                     sig_t[key][1].append(s)
+                else:
+                    sig_t[key][2].append(s)
 
             #print('sig_t[%s]=' % key, sig_t[key])
         
             for idx in range(len(sig_t[key])):
-                print('sig_t[%s][%d] = (%d-%d)' % (key, idx, min(sig_t[key][idx]), max(sig_t[key][idx])))
-                #print(sig_t[key][idx])
-                #print()
+                if len(sig_t[key][idx]) > 0:
+                    print('[%s] sig_t[%s][%d] = (%d-%d)' % (key, key, idx, min(sig_t[key][idx]), max(sig_t[key][idx])))
+                    #print(sig_t[key][idx])
+                    #print()
                 
-                try:
-                    sig_mode[key].append(statistics.mode(sig_t[key][idx]))
-                except statistics.StatisticsError:
-                    sig_mode[key].append(round(sum(sig_t[key][idx]) / len(sig_t[key][idx])))
+                    sig_mode[key].append(get_mode(sig_t[key][idx], 50))
 
-            print('sig_mode[%s] =' % key, sig_mode[key])
+                    '''
+                    try:
+                        sig_mode[key].append(statistics.mode(sig_t[key][idx]))
+                    except statistics.StatisticsError:
+                        sig_mode[key].append(round(sum(sig_t[key][idx]) / len(sig_t[key][idx])))
+                    '''
+
+            print('[%s] sig_mode[%s][0] = %d' % (key, key, sig_mode[key][0]))
             print()
 
             ## check
@@ -123,21 +168,22 @@ def main():
             t1_max = max(sig_t[key][1])
             
             if t0_max * FIX_FACTOR > t1_min:
-                print('* Error! %d, %d' % (t0_max, t1_min))
-                print()
+                print('[%s] * Error! %d, %d' % (key, t0_max, t1_min))
                 stat_num = STAT_ERR
 
                 ## fix sig[]
-                print('* Fix data ...')
-                print()
+                print('[%s] * Fix data: ' % key, end='')
                 idx = sig[key].index(t0_min)
+                print('%d->%d  ' % (sig[key][idx], sig_mode[key][0]), end='')
                 sig[key][idx] = sig_mode[key][0]
 
                 idx = sig[key].index(t1_min)
-                sig[key][idx] = sig_mode[key][0]
-
+                print('%d<-%d  ' % (t0_max, sig[key][idx]), end='')
+                sig[key][idx] = t0_max
+                print()
+                
                 stat_num = STAT_UNKNOWN
-                #break
+                print()
 
     if stat_num != STAT_OK:
         print('* Error[%d]' % stat_num)
@@ -180,8 +226,8 @@ def main():
     sig_normalize_pair = []
     while len(sig_normalize) > 0:
         sig_normalize_pair.append([sig_normalize.pop(0), sig_normalize.pop(0)])
-    #print('sig_normalize_pair =')
-    #print(sig_normalize_pair)
+    print('sig_normalize_pair =')
+    print(sig_normalize_pair)
 
     sig_ptn = sorted(list(map(list, set(map(tuple, sig_normalize_pair)))))
     #print(sig_ptn)
