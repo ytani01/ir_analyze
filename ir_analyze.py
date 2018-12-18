@@ -4,31 +4,30 @@
 
 import sys
 import os
-import statistics
+import re
 
-MYNAME = os.path.basename(sys.argv[0])
+MYNAME		= os.path.basename(sys.argv[0])
 
-SIG_LONG = 69999
+SIG_LONG	= 39999
 
-DEF_FACTOR = 1.8
-
-FIX_FACTOR = 1.3
+DEF_FACTOR	= 1.8
+FIX_FACTOR	= 1.3
 
 STAT_OK		= 0
 STAT_UNKNOWN	= 1
 STAT_WARN	= 10
 STAT_ERR	= 100
-stat_num = STAT_OK
+stat_num	= STAT_OK
+
+CHR_ONE		= '1'
+CHR_ZERO	= '0'
+CHR_LEADER	= '-'
+CHR_TRAILER	= '/'
+CHR_REPEAT	= '*'
+CHR_MISC	= '?'
 
 #####
-class IrSig:
-    def __init__(self, t1, t2, sym):
-        self.t1		= t1
-        self.t2		= t2
-        self.sym	= sym
-
-#####
-# usage
+## usage
 def usage():
     print()
     print('Usage:')
@@ -41,7 +40,7 @@ def usage():
     print()
 
 
-# sig[][] -> sig_raw[]
+## sig[][] -> sig_raw[]
 def sig_to_sig_raw(sig):
     sig_raw = []
 
@@ -54,7 +53,8 @@ def sig_to_sig_raw(sig):
 
     return sig_raw
 
-# get_mode
+
+## get_mode
 def get_mode(data, a):
     if len(data) <= 20:
         print('  data[] =', data)
@@ -80,9 +80,18 @@ def get_mode(data, a):
     idx = freq_list.index(max(freq_list))
     ret = sum_list[idx] / freq_list[idx]
     return int(round(ret))
-        
 
-#####
+
+## mk_sig_str
+def mk_sig_str(sig_list, ir_sig):
+    sig_str = ''
+    for [t1, t2] in sig_list:
+        sig_str += ir_sig[t1, t2]
+
+    return sig_str
+    
+
+##### main
 def main():
     if len(sys.argv) < 2 or len(sys.argv) > 3:
         usage()
@@ -116,7 +125,6 @@ def main():
     #print(min(sig['pulse']), min(sig['space']))
 
     # normalize
-    sig_normalize = { 'pulse': [], 'space': [] }
     sig_t = {'pulse': [[], []], 'space': [[], []]}
     sig_mode = {'pulse': [], 'space': []}
 
@@ -124,7 +132,6 @@ def main():
         stat_num = STAT_UNKNOWN
         while stat_num != STAT_OK:
             stat_num = STAT_OK
-            sig_normalize[key] = []
             sig_t[key] = [[], [], []]
             sig2 = []
             sig_mode[key] = []
@@ -145,18 +152,12 @@ def main():
         
             for idx in range(len(sig_t[key])):
                 if len(sig_t[key][idx]) > 0:
-                    print('[%s] sig_t[%s][%d] = (%d-%d)' % (key, key, idx, min(sig_t[key][idx]), max(sig_t[key][idx])))
+                    print('[%s] sig_t[%s][%d] = (%d-%d)' % (key, key, idx,
+                                                            min(sig_t[key][idx]), max(sig_t[key][idx])))
                     #print(sig_t[key][idx])
                     #print()
                 
                     sig_mode[key].append(get_mode(sig_t[key][idx], 50))
-
-                    '''
-                    try:
-                        sig_mode[key].append(statistics.mode(sig_t[key][idx]))
-                    except statistics.StatisticsError:
-                        sig_mode[key].append(round(sum(sig_t[key][idx]) / len(sig_t[key][idx])))
-                    '''
 
             print('[%s] sig_mode[%s][0] = %d' % (key, key, sig_mode[key][0]))
             print()
@@ -168,7 +169,7 @@ def main():
             t1_max = max(sig_t[key][1])
             
             if t0_max * FIX_FACTOR > t1_min:
-                print('[%s] * Error! %d, %d' % (key, t0_max, t1_min))
+                print('[%s] ! Error! %d, %d' % (key, t0_max, t1_min))
                 stat_num = STAT_ERR
 
                 ## fix sig[]
@@ -186,7 +187,7 @@ def main():
                 print()
 
     if stat_num != STAT_OK:
-        print('* Error[%d]' % stat_num)
+        print('! Error[%d]' % stat_num)
         sys.exit(1)
 
     sig_raw = sig_to_sig_raw(sig)
@@ -226,8 +227,8 @@ def main():
     sig_normalize_pair = []
     while len(sig_normalize) > 0:
         sig_normalize_pair.append([sig_normalize.pop(0), sig_normalize.pop(0)])
-    print('sig_normalize_pair =')
-    print(sig_normalize_pair)
+    #print('sig_normalize_pair =')
+    #print(sig_normalize_pair)
 
     sig_ptn = sorted(list(map(list, set(map(tuple, sig_normalize_pair)))))
     #print(sig_ptn)
@@ -252,148 +253,138 @@ def main():
             if t1 == t1a and t2 == t2a:
                 return num
 
+    print('# sig_ptn =', sig_ptn)
     print()
+
     
-    print(sig_ptn)
     ## 信号パターン判定
     ir_sig = {}
 
     # '0'
-    print('[0]:\t\t', end='')
-    ir_sig['1-1'] = IrSig(1, 1, '0')
-    sig_ptn.remove([1, 1])
+    print('[%s]:\t\t' % CHR_ZERO, end='')
+    ir_sig[1,1] = CHR_ZERO
+    try:
+        sig_ptn.remove([1, 1])
+    except ValueError:
+        print('!! Error: [1, 1]: not found')
+        sys.exit(1)
     print('1T+1T * %d\t' % (freq_dist(1, 1)))
     
     # 'leader'
-    print('[-]leader:\t', end='')
+    print('[%s]leader:\t' % CHR_LEADER, end='')
     t1a = sig_normalize_pair[0][0]
     t2a = sig_normalize_pair[0][1]
     sig_ptn1 = []
     for [t1, t2] in sig_ptn:
         if t1 >= 2 and abs(t1 - t1a) <= 1 and abs(t2 - t2a) <= 1:
-            key = str(t1) + '-' + str(t2)
-            ir_sig[key] = IrSig(t1, t2, '-')
+            ir_sig[t1, t2] = CHR_LEADER
             print('%dT+%dT * %d\t' % (t1, t2, freq_dist(t1, t2)), end='')
         else:
             sig_ptn1.append([t1, t2])
     print()
 
     # repeat?
-    print('[*]repeat?:\t', end='')
+    print('[%s]repeat?:\t' % CHR_REPEAT, end='')
     sig_ptn2 = []
     for [t1, t2] in sig_ptn1:
         if t1 >= 3 and t2 >= 3:
-            key = str(t1) + '-' + str(t2)
-            ir_sig[key] = IrSig(t1, t2, '*')
+            ir_sig[t1, t2] = CHR_REPEAT
             print('%dT+%dT * %d\t' % (t1, t2, freq_dist(t1, t2)), end='')
         else:
             sig_ptn2.append([t1, t2])
     print()
 
     # 'trailer'
-    print('[/]trailer:\t', end='')
+    print('[%s]trailer:\t' % CHR_TRAILER, end='')
     sig_ptn3 = []
     for [t1, t2] in sig_ptn2:
         if t1 == 1 and t2 >= 6:
-            key = str(t1) + '-' + str(t2)
-            ir_sig[key] = IrSig(t1, t2, '/')
+            ir_sig[t1, t2] = CHR_TRAILER
             print('%dT+%dT * %d\t' % (t1, t2, freq_dist(t1, t2)), end='')
         else:
             sig_ptn3.append([t1, t2])
     print()
 
     # '1'
-    print('[1]:\t\t', end='')
+    print('[%s]:\t\t' % CHR_ONE, end='')
     sig_ptn4 = []
     for [t1, t2] in sig_ptn3:
         if ( t1 == 1 and t2 >= 2 ) or ( t1 >= 2 and t2 == 1 ):
-            key = str(t1) + '-' + str(t2)
-            ir_sig[key] = IrSig(t1, t2, '1')
+            ir_sig[t1, t2] = CHR_ONE
             print('%dT+%dT * %d\t' % (t1, t2, freq_dist(t1, t2)), end='')
         else:
             sig_ptn4.append([t1, t2])
     print()
 
     # '?'
-    print('[?]:\t\t', end='')
+    print('[%s]:\t\t' % CHR_MISC, end='')
     for [t1, t2] in sig_ptn4:
-        key = str(t1) + '-' + str(t2)
-        ir_sig[key] = IrSig(t1, t2, '?')
+        ir_sig[t1, t2] = CHR_MISC
         print('%dT+%dT * %d\t' % (t1, t2, freq_dist(t1, t2)), end='')
     print()
 
-
-    ## print bit pattern
     print()
-    print('* bit pattern', end='')
+
     
-    bit_count = 0
-    nl_flag = False
-    val = 0
-    val_list = []
+    ## make signal string list
+    sig_str = mk_sig_str(sig_normalize_pair, ir_sig)
+    sig_line = re.sub(CHR_LEADER, ' '+CHR_LEADER, sig_str).split()
+    sig_list = []
+    for l in sig_line:
+        sig_list.append(re.sub('(\D)', ' \\1 ', l).split())
 
-    for idx in range(len(sig_normalize_pair)):
-        t1 = sig_normalize_pair[idx][0]
-        t2 = sig_normalize_pair[idx][1]
-        key = str(t1) + '-' + str(t2)
-        sym = ir_sig[key].sym
-        if sym == '-':
-            print()
-        if sym == '*':
-            print(' ', end='')
-        print(sym, end='')
-        if sym == '0' or sym == '1':
-            val = val * 2 + int(sym)
-            bit_count += 1
-            if bit_count % 8 == 0:
-                if bit_count > 0:
-                    val_list.append(val)
-                bit_count = 0
-                val = 0
-                print(' ', end='')
-        if sym == '/' or sym == '-' or sym == '*':
-            if bit_count > 0:
-                for i in range(8 - bit_count):
-                    val *= 2
-                val_list.append(val)
-            if sym == '*':
-                val_list.append(0x100)
-                print(' ', end='')
-            elif sym == '-':
-                val_list.append(-1)
-            bit_count = 0
-            val = 0
-
-    if bit_count > 0:
-        for i in range(8 - bit_count):
-            val *= 2
-        val_list.append(val)
-    if not nl_flag:
+    
+    ## print bit pattern
+    print('# bit pattern')
+    for line in sig_list:
+        print('#BIT ', end='')
+        for s in line:
+            if s[0] in '01':
+                s = re.sub('(\d{8})', '\\1 ', s)
+                s = re.sub(' $', '', s)
+            print(s + ' ', end='')
         print()
 
-    if val_list[0] < 0:
-        val_list.pop(0)
-    if val_list[-1] < 0:
-        val_list.pop(-1)
-    #print(val_list)
-
     print()
 
+    
     ## print hex pattern
-    print('* hex pattern')
-    for v in val_list:
-        if v >= 0:
-            if v <= 0xff:
-                print('%02X ' % v, end='')
+    print('# Hex code: MSB-LSB')
+    for line in sig_list:
+        print('#HEX:MSB ', end='')
+        for s in line:
+            if s[0] in CHR_ZERO+CHR_ONE:
+                l = re.sub('(\d{8})', '\\1 ', s).split()
+                for h in l:
+                    h += '0000000'
+                    print('%02X ' % int(h[:8], 2), end='')
+                print('', end='')
             else:
-                print('* ', end='')
-        else:
-            print()
+                print(s + ' ', end='')
+        print()
+
     print()
 
-    ## print lirc.conf
+    print('# Hex code: LSB-MSB')
+    for line in sig_list:
+        print('#HEX:LSB ', end='')
+        for s in line:
+            if s[0] in '01':
+                s = s[::-1]
+                l = re.sub('(\d{8})', '\\1 ', s).split()
+                for h in l:
+                    h += '0000000'
+                    print('%02X ' % int(h[:8], 2), end='')
+                print('', end='')
+            else:
+                print(s + ' ', end='')
+        print()
+
     print()
-    print('* raw_codes')
+
+    
+    ## print lirc.conf
+    print('# raw codes')
     count = 0
     nl_flag = True
     if sony_type:
@@ -402,8 +393,7 @@ def main():
         #print(sig_raw)
 
     for [t1, t2] in sig_normalize_pair:
-        key = str(t1) + '-' + str(t2)
-        sym = ir_sig[key].sym
+        sym = ir_sig[t1, t2]
         v1 = sig_raw.pop(0)
         v2 = sig_raw.pop(0)
 
