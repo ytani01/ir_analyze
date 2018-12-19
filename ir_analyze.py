@@ -90,6 +90,46 @@ def mk_sig_str(sig_list, ir_sig):
 
     return sig_str
     
+## decode signal
+def decode_signal(sig_list):
+    #print(sig_list)
+
+    ## print bit pattern
+    print('# bit pattern')
+    for line in sig_list:
+        print('#BIT ', end='')
+        for s in line:
+            if s[0] in CHR_ZERO + CHR_ONE:
+                s = re.sub('(\d{8})', '\\1 ', s)
+                s = re.sub(' $', '', s)
+            print(s + ' ', end='')
+        print()
+    print()
+
+    ## print hex pattern
+    print('# Hex code: MSB-LSB')
+    for line in sig_list:
+        print('#HEX:MSB ', end='')
+        for s in line:
+            if s[0] in CHR_ZERO + CHR_ONE:
+                print('%X ' % int(s, 2), end='')
+            else:
+                print(s + ' ', end='')
+        print()
+    print()
+
+    print('# Hex code: LSB-MSB')
+    for line in sig_list:
+        print('#HEX:LSB ', end='')
+        for s in line:
+            if s[0] in CHR_ZERO + CHR_ONE:
+                s = s[::-1]
+                print('%X ' % int(s, 2), end='')
+            else:
+                print(s + ' ', end='')
+        print()
+    print()
+    
 
 ##### main
 def main():
@@ -333,55 +373,20 @@ def main():
     for l in sig_line:
         sig_list.append(re.sub('(\D)', ' \\1 ', l).split())
 
+    decode_signal(sig_list)
+
+    #print(sig_list)
     
-    ## print bit pattern
-    print('# bit pattern')
-    for line in sig_list:
-        print('#BIT ', end='')
-        for s in line:
-            if s[0] in '01':
-                s = re.sub('(\d{8})', '\\1 ', s)
-                s = re.sub(' $', '', s)
-            print(s + ' ', end='')
+    if sony_type:
+        print('#! SONY Type: -1 bit decoding')
         print()
+        for idx1 in range(len(sig_list)):
+            for idx2 in range(len(sig_list[idx1])):
+                if sig_list[idx1][idx2][0] in CHR_ZERO + CHR_ONE:
+                    sig_list[idx1][idx2] = sig_list[idx1][idx2][:-1]
 
-    print()
-
-    
-    ## print hex pattern
-    print('# Hex code: MSB-LSB')
-    for line in sig_list:
-        print('#HEX:MSB ', end='')
-        for s in line:
-            if s[0] in CHR_ZERO + CHR_ONE:
-                l = re.sub('(\d{4})', '\\1 ', s).split()
-                for h in l:
-                    h += '000'
-                    print('%X' % int(h[:4], 2), end='')
-                print(' ', end='')
-            else:
-                print(s + ' ', end='')
-        print()
-
-    print()
-
-    print('# Hex code: LSB-MSB')
-    for line in sig_list:
-        print('#HEX:LSB ', end='')
-        for s in line:
-            if s[0] in CHR_ZERO + CHR_ONE:
-                s = s[::-1]
-                l = re.sub('(\d{4})', '\\1 ', s).split()
-                for h in l:
-                    h += '000'
-                    print('%X' % int(h[:4], 2), end='')
-                print(' ', end='')
-            else:
-                print(s + ' ', end='')
-        print()
-
-    print()
-
+        #print(sig_list)
+        decode_signal(sig_list)
     
     ## print lirc.conf
     print('# raw codes')
@@ -397,7 +402,7 @@ def main():
         v1 = sig_raw.pop(0)
         v2 = sig_raw.pop(0)
 
-        if sym in '01':
+        if sym in CHR_ZERO + CHR_ONE:
             print('%4d %4d ' % (v1, v2), end='')
             nl_flag = False
             count += 1
