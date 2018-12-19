@@ -8,7 +8,7 @@ import re
 
 MYNAME		= os.path.basename(sys.argv[0])
 
-SIG_LONG	= 39999
+SIG_LONG	= 59999
 
 DEF_FACTOR	= 1.7
 FIX_FACTOR	= 1.3
@@ -95,12 +95,14 @@ def decode_signal(sig_list):
     #print(sig_list)
 
     ## print bit pattern
-    print('# bit pattern')
+    print('# bit pattern: MSB-LSB')
     for line in sig_list:
-        print('#BIT ', end='')
+        print('#BIT:MSB ', end='')
         for s in line:
             if s[0] in CHR_ZERO + CHR_ONE:
+                s = s[::-1]
                 s = re.sub('(\d{8})', '\\1 ', s)
+                s = s[::-1]
                 s = re.sub(' $', '', s)
             print(s + ' ', end='')
         print()
@@ -112,9 +114,24 @@ def decode_signal(sig_list):
         print('#HEX:MSB ', end='')
         for s in line:
             if s[0] in CHR_ZERO + CHR_ONE:
-                print('%X ' % int(s, 2), end='')
+                hex_len = int(len(s) / 4 + 0.99)
+                hex_str = ('0' * hex_len + '%X' % int(s, 2))[-hex_len:]
+                print(hex_str + ' ', end='')
             else:
                 print(s + ' ', end='')
+        print()
+    print()
+
+    ## print bit pattern
+    print('# bit pattern: LSB-MSB')
+    for line in sig_list:
+        print('#BIT:LSB ', end='')
+        for s in line:
+            if s[0] in CHR_ZERO + CHR_ONE:
+                s = re.sub('(\d{8})', '\\1 ', s)
+                s = s[::-1]
+                s = re.sub(' $', '', s)
+            print(s + ' ', end='')
         print()
     print()
 
@@ -124,7 +141,9 @@ def decode_signal(sig_list):
         for s in line:
             if s[0] in CHR_ZERO + CHR_ONE:
                 s = s[::-1]
-                print('%X ' % int(s, 2), end='')
+                hex_len = int(len(s) / 4 + 0.99)
+                hex_str = ('0' * hex_len + '%X' % int(s, 2))[-hex_len:]
+                print(hex_str + ' ', end='')
             else:
                 print(s + ' ', end='')
         print()
@@ -377,18 +396,18 @@ def main():
 
     #print(sig_list)
     
-    if sony_type:
-        print('#! SONY Type: -1 bit decoding')
-        print()
-        for idx1 in range(len(sig_list)):
-            for idx2 in range(len(sig_list[idx1])):
-                if sig_list[idx1][idx2][0] in CHR_ZERO + CHR_ONE:
+    print('# SONY Type: -1 bit decoding')
+    print()
+    for idx1 in range(len(sig_list)):
+        for idx2 in range(len(sig_list[idx1])):
+            if sig_list[idx1][idx2][0] in CHR_ZERO + CHR_ONE:
+                if len(sig_list[idx1][idx2]) > 1:
                     sig_list[idx1][idx2] = sig_list[idx1][idx2][:-1]
 
-        #print(sig_list)
-        decode_signal(sig_list)
+    #print(sig_list)
+    decode_signal(sig_list)
     
-    ## print lirc.conf
+    ## print lirc.conf raw codes
     print('# raw codes')
     count = 0
     nl_flag = True
@@ -397,10 +416,12 @@ def main():
         sig_raw.append(SIG_LONG)
         #print(sig_raw)
 
+    sig_sum = 0
     for [t1, t2] in sig_normalize_pair:
         sym = ir_sig[t1, t2]
         v1 = sig_raw.pop(0)
         v2 = sig_raw.pop(0)
+        sig_sum += v1 + v2
 
         if sym in CHR_ZERO + CHR_ONE:
             print('%4d %4d ' % (v1, v2), end='')
@@ -413,13 +434,20 @@ def main():
         else:
             if not nl_flag:
                 print()
+                
             print('%4d %4d ' % (v1, v2))
             nl_flag = True
             count = 0
+
+            if v2 == SIG_LONG:
+                sig_sum -= SIG_LONG
+            print('[%d]' % sig_sum)
+            sig_sum = 0
             
         # print(t1, t2, '', end='')
 
     print()
+
 
 #####
 if __name__ == '__main__':
