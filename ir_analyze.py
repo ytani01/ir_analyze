@@ -5,6 +5,7 @@
 import sys
 import os
 import re
+import pprint
 
 MYNAME		= os.path.basename(sys.argv[0])
 
@@ -58,9 +59,9 @@ def sig_to_sig_raw(sig):
 
 
 ## get_mode
-def get_mode(data, a):
-    if len(data) <= 20:
-        print('  data[] =', data)
+def get_mode(data, step):
+    #if len(data) <= 20:
+    #    print('  data[] =', data)
 
     data2 = [d for d in data]
 
@@ -70,16 +71,16 @@ def get_mode(data, a):
     data2.remove(min(data2))
     data2.remove(max(data2))
     
-    n = int((max(data2) - min(data2)) / a) + 1
+    n = int((max(data2) - min(data2)) / step) + 1
     freq_list = [0] * n
     sum_list = [0] * n
     for  d in data2:
-        idx = int((d - min(data2)) / a)
+        idx = int((d - min(data2)) / step)
         freq_list[idx] += 1
         sum_list[idx] += d
 
-    if len(freq_list) <= 20:
-        print('  freq_list[] =', freq_list)
+    #if len(freq_list) <= 20:
+    #    print('  freq_list[] =', freq_list)
     idx = freq_list.index(max(freq_list))
     ret = sum_list[idx] / freq_list[idx]
     return int(round(ret))
@@ -89,7 +90,7 @@ def get_mode(data, a):
 def mk_sig_str(sig_list, ir_sig):
     sig_str = ''
     for [t1, t2] in sig_list:
-        sig_str += ir_sig[t1, t2]
+        sig_str += SIG_CH[ir_sig[t1, t2]]
 
     return sig_str
     
@@ -131,7 +132,6 @@ def decode_signal(sig_list):
     ## print hex code
     print('# Hex code: MSB first')
     print_hex_code(sig_list, '#HEX:MSB ', True)
-    print()
 
     print('## LSB first')
 
@@ -142,7 +142,6 @@ def decode_signal(sig_list):
     ## print hex code
     print('# Hex code: LSB first')
     print_hex_code(sig_list, '#HEX:LSB ', False)
-    print()
     
 
 ##### main
@@ -185,10 +184,9 @@ def main():
         stat_num = STAT_UNKNOWN
         while stat_num != STAT_OK:
             stat_num = STAT_OK
+
             sig_t[key] = [[], [], []]
             sig2 = []
-            sig_mode[key] = []
-            
             for s in sig[key]:
                 if s < min(sig[key]) * factor:
                     sig_t[key][0].append(s)
@@ -203,17 +201,17 @@ def main():
 
             #print('sig_t[%s]=' % key, sig_t[key])
         
+            sig_mode[key] = []
             for idx in range(len(sig_t[key])):
                 if len(sig_t[key][idx]) > 0:
-                    print('[%s] sig_t[%s][%d] = (%d-%d)' % (key, key, idx,
+                    print('# [%s] sig_t[%s][%d] = (%d-%d)' % (key, key, idx,
                                                             min(sig_t[key][idx]), max(sig_t[key][idx])))
                     #print(sig_t[key][idx])
                     #print()
                 
                     sig_mode[key].append(get_mode(sig_t[key][idx], 50))
 
-            print('[%s] sig_mode[%s][0] = %d' % (key, key, sig_mode[key][0]))
-            print()
+            print('# [%s] sig_mode[%s][0] = %d' % (key, key, sig_mode[key][0]))
 
             ## check
             t0_min = min(sig_t[key][0])
@@ -222,11 +220,11 @@ def main():
             t1_max = max(sig_t[key][1])
             
             if t0_max * FIX_FACTOR > t1_min:
-                print('[%s] ! Error! %d, %d' % (key, t0_max, t1_min))
+                print('# [%s] ! Error! %d, %d' % (key, t0_max, t1_min))
                 stat_num = STAT_ERR
 
                 ## fix sig[]
-                print('[%s] * Fix data: ' % key, end='')
+                print('# [%s] * Fix data: ' % key, end='')
                 idx = sig[key].index(t0_min)
                 print('%d->%d  ' % (sig[key][idx], sig_mode[key][0]), end='')
                 sig[key][idx] = sig_mode[key][0]
@@ -242,6 +240,8 @@ def main():
     if stat_num != STAT_OK:
         print('! Error[%d]' % stat_num)
         sys.exit(1)
+
+    #print('# mode value: ', [ sig_mode['pulse'][0], sig_mode['space'][0] ])
 
     sig_raw = sig_to_sig_raw(sig)
 
@@ -285,9 +285,31 @@ def main():
     #print(sig_normalize_pair)
 
     sig_ptn = sorted(list(map(list, set(map(tuple, sig_normalize_pair)))))
-    #print(sig_ptn)
+    print('## sig_ptn =', sig_ptn)
 
-    # 度数分布
+    ## sig_ptn_raw
+    idx = 0
+    sig_ptn_raw = {}
+    for [t1, t2] in sig_normalize_pair:
+        v1 = sig_raw[idx]
+        v2 = sig_raw[idx + 1]
+        #print(t1, t2, v1, v2)
+        sig_ptn_raw['pulse', t1] = sig_ptn_raw.get(('pulse', t1), [])
+        sig_ptn_raw['space', t2] = sig_ptn_raw.get(('space', t2), [])
+        sig_ptn_raw['pulse', t1].append(v1)
+        sig_ptn_raw['space', t2].append(v2)
+        idx += 2
+
+    sig_key = ''
+    for [s, t] in sorted(sig_ptn_raw.keys()):
+        if s != sig_key:
+            sig_key = s
+            print('## [%s]' % sig_key)
+        print('### %dT = %d' % (t, get_mode(sig_ptn_raw[s, t], 50)))
+        #pprint.pprint(sig_ptn_raw[s, t], width=80, indent=2, compact=True)
+    
+
+    ## 度数分布
     sig_ptn_freq_dist = []
     for p in sig_ptn:
         sig_ptn_freq_dist.append([p, 0])
@@ -307,8 +329,8 @@ def main():
             if t1 == t1a and t2 == t2a:
                 return num
 
-    print('# sig_ptn =', sig_ptn)
-    print()
+    #print('# sig_ptn =', sig_ptn)
+    #print('# ', [[t1 * sig_mode['pulse'][0], t2 * sig_mode['space'][0]] for [t1, t2] in sig_ptn])
 
     
     ## 信号パターン判定
@@ -318,71 +340,90 @@ def main():
     t1a = sig_normalize_pair[0][0]
     t2a = sig_normalize_pair[0][1]
     ir_sig = {}
-    ir_sig[t1a, t2a] = SIG_CH['leader']
+    ir_sig[t1a, t2a] = 'leader'
     sig_ptn_work.remove([t1a, t2a])
     
     # '0'
-    print('[%s]zero:\t' % SIG_CH['zero'], end='')
-    ir_sig[1,1] = SIG_CH['zero']
+    ir_sig[1,1] = 'zero'
     try:
         sig_ptn_work.remove([1, 1])
     except ValueError:
         print('!! Error: [1, 1]: not found')
         sys.exit(1)
-    print('1T+1T * %d\t' % (freq_dist(1, 1)))
     
     # '1'
-    print('[%s]one:\t\t' % SIG_CH['one'], end='')
     sig_ptn_a = sig_ptn_work[:]
     for [t1, t2] in sig_ptn_a:
         if ( t1 == 1 and t2 >= 2 and t2 <= 4) or ( t1 >= 2 and t1 <= 4 and t2 == 1 ):
-            ir_sig[t1, t2] = SIG_CH['one']
-            print('%dT+%dT * %d\t' % (t1, t2, freq_dist(t1, t2)), end='')
+            ir_sig[t1, t2] = 'one'
             sig_ptn_work.remove([t1, t2])
-    print()
 
     # 'leader'
-    print('[%s]leader:\t' % SIG_CH['leader'], end='')
     sig_ptn_a = sig_ptn_work[:]
     for [t1, t2] in sig_ptn_a:
         if t1 > 2 and abs(t1 - t1a) <= 1 and abs(t2 - t2a) <= 1:
-            ir_sig[t1, t2] = SIG_CH['leader']
-            print('%dT+%dT * %d\t' % (t1, t2, freq_dist(t1, t2)), end='')
+            ir_sig[t1, t2] = 'leader'
             sig_ptn_work.remove([t1, t2])
-    print()
 
     # 'trailer'
-    print('[%s]trailer:\t' % SIG_CH['trailer'], end='')
     sig_ptn_a = sig_ptn_work[:]
     for [t1, t2] in sig_ptn_a:
-        if t1 == 1 and t2 >= 6:
-            ir_sig[t1, t2] = SIG_CH['trailer']
-            print('%dT+%dT * %d\t' % (t1, t2, freq_dist(t1, t2)), end='')
+        if (t1 == 1 and t2 >= 6) or t2 > 100:
+            ir_sig[t1, t2] = 'trailer'
             sig_ptn_work.remove([t1, t2])
-    print()
 
     # repeat?
-    print('[%s]repeat?:\t' % SIG_CH['repeat'], end='')
     sig_ptn_a = sig_ptn_work[:]
     for [t1, t2] in sig_ptn_a:
         if t1 >= 2 and t2 >= 2:
-            ir_sig[t1, t2] = SIG_CH['repeat']
-            print('%dT+%dT * %d\t' % (t1, t2, freq_dist(t1, t2)), end='')
+            ir_sig[t1, t2] = 'repeat'
             sig_ptn_work.remove([t1, t2])
-    print()
 
     # '?'
-    print('[%s]misc:\t\t' % SIG_CH['misc'], end='')
     sig_ptn_a = sig_ptn_work[:]
     for [t1, t2] in sig_ptn_a:
-        ir_sig[t1, t2] = SIG_CH['misc']
-        print('%dT+%dT * %d\t' % (t1, t2, freq_dist(t1, t2)), end='')
+        ir_sig[t1, t2] = 'misc'
         sig_ptn_work.remove([t1, t2])
-    print()
-    print()
 
-    #print('# ir_sig =', ir_sig)
-    #print()
+    # reverse 
+    ir_sig_name = {}
+    for [t1, t2] in ir_sig.keys():
+        sig_name = ir_sig[t1, t2]
+        ir_sig_name[sig_name] = ir_sig_name.get(sig_name, [])
+        ir_sig_name[sig_name].append([t1, t2])
+    #print(ir_sig_name)
+
+    ## print signal pattern
+    for sig_name in ['leader', 'zero', 'one', 'trailer', 'repeat', 'misc']:
+        print('# [%s]%-8s: ' % (SIG_CH[sig_name], sig_name), end='')
+        for [t1, t2] in ir_sig_name.get(sig_name, []):
+            print('%dT+%dT * %d\t' % (t1, t2, freq_dist(t1, t2)), end='')
+        print()
+    
+    ## フォーマット判定
+    print('## IR Format = ', end='')
+
+    fmt = '???'
+    for [t1, t2] in ir_sig_name['one']:
+        if (t1 == 2 or t1 == 3) and t2 == 1:
+            fmt = 'SONY'
+            break
+        if t1 == 1 and t2 >= 3 and t2 <= 5:
+            for [t11, t22] in ir_sig_name['leader']:
+                if t11 >= 13 and t11 <= 17 and t22 >= 7 and t22 <= 10:
+                    fmt = 'NEC'
+                    break
+                if t11 >= 7 and t11 <= 9 and t22 >= 3 and t22 <= 5:
+                    fmt = 'AEHA'
+                    break
+            if fmt != '???':
+                break
+            for [t11, t22] in ir_sig_name.get('repeat', []):
+                if t11 >= 12 and t22 <= 8:
+                    fmt = 'NEC?'
+                
+    print(fmt)
+                
     
     ## make signal string list
     sig_str = mk_sig_str(sig_normalize_pair, ir_sig)
@@ -395,8 +436,7 @@ def main():
 
     #print(sig_list)
     
-    print('# for SONY Type: -1 bit decoding')
-    print()
+    print('### for SONY Type: -1 bit decoding')
     for idx1 in range(len(sig_list)):
         for idx2 in range(len(sig_list[idx1])):
             if sig_list[idx1][idx2][0] in SIG_CH_01:
@@ -417,7 +457,7 @@ def main():
 
     sig_sum = 0
     for [t1, t2] in sig_normalize_pair:
-        sym = ir_sig[t1, t2]
+        sym = SIG_CH[ir_sig[t1, t2]]
         v1 = sig_raw.pop(0)
         v2 = sig_raw.pop(0)
         sig_sum += v1 + v2
