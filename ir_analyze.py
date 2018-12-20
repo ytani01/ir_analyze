@@ -441,7 +441,7 @@ def main():
 
             if v2 == SIG_LONG:
                 sig_sum -= SIG_LONG
-            print('[%d]' % sig_sum)
+            #print('[%d]' % sig_sum)
             sig_sum = 0
             
         # print(t1, t2, '', end='')
