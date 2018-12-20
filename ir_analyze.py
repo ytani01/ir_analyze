@@ -19,12 +19,15 @@ STAT_WARN	= 10
 STAT_ERR	= 100
 stat_num	= STAT_OK
 
-CHR_ONE		= '1'
-CHR_ZERO	= '0'
-CHR_LEADER	= '-'
-CHR_TRAILER	= '/'
-CHR_REPEAT	= '*'
-CHR_MISC	= '?'
+SIG_CH		= {
+    'zero':	'0',
+    'one':	'1',
+    'leader': 	'-',
+    'trailer':	'/',
+    'repeat':	'*',
+    'misc':	'?'
+    }
+SIG_CH_01	= SIG_CH['zero'] + SIG_CH['one']
 
 #####
 ## usage
@@ -90,63 +93,55 @@ def mk_sig_str(sig_list, ir_sig):
 
     return sig_str
     
+## print bit pattern
+def print_bit_pattern(sig_list, prefix='', msb_first=True):
+    for line in sig_list:
+        print(prefix, end='')
+        for s in line:
+            if s[0] in SIG_CH_01:
+                if msb_first:
+                    s = s[::-1]
+                s = re.sub('(\d{8})', '\\1 ', s)
+                s = s.strip()
+                s = s[::-1]
+            print(s + ' ', end='')
+        print()
+
+## print hex code
+def print_hex_code(sig_list, prefix='', msb_first=True):
+    for line in sig_list:
+        print(prefix, end='')
+        for s in line:
+            if s[0] in SIG_CH_01:
+                if not msb_first:
+                    s = s[::-1]
+                hex_len = int(len(s) / 4 + 0.99)
+                s = ('0' * hex_len + '%X' % int(s, 2))[-hex_len:]
+            print(s + ' ', end='')
+        print()
+
 ## decode signal
 def decode_signal(sig_list):
-    #print(sig_list)
+    print('## MSB first')
 
     ## print bit pattern
-    print('# bit pattern: MSB-LSB')
-    for line in sig_list:
-        print('#BIT:MSB ', end='')
-        for s in line:
-            if s[0] in CHR_ZERO + CHR_ONE:
-                s = s[::-1]
-                s = re.sub('(\d{8})', '\\1 ', s)
-                s = s[::-1]
-                s = re.sub(' $', '', s)
-            print(s + ' ', end='')
-        print()
+    print('# bit pattern: MSB first')
+    print_bit_pattern(sig_list, '#BIT:MSB ', True);
+
+    ## print hex code
+    print('# Hex code: MSB first')
+    print_hex_code(sig_list, '#HEX:MSB ', True)
     print()
 
-    ## print hex pattern
-    print('# Hex code: MSB-LSB')
-    for line in sig_list:
-        print('#HEX:MSB ', end='')
-        for s in line:
-            if s[0] in CHR_ZERO + CHR_ONE:
-                hex_len = int(len(s) / 4 + 0.99)
-                hex_str = ('0' * hex_len + '%X' % int(s, 2))[-hex_len:]
-                print(hex_str + ' ', end='')
-            else:
-                print(s + ' ', end='')
-        print()
-    print()
+    print('## LSB first')
 
     ## print bit pattern
-    print('# bit pattern: LSB-MSB')
-    for line in sig_list:
-        print('#BIT:LSB ', end='')
-        for s in line:
-            if s[0] in CHR_ZERO + CHR_ONE:
-                s = re.sub('(\d{8})', '\\1 ', s)
-                s = s[::-1]
-                s = re.sub(' $', '', s)
-            print(s + ' ', end='')
-        print()
-    print()
+    print('# bit pattern: LSB first')
+    print_bit_pattern(sig_list, '#BIT:LSB ', False)
 
-    print('# Hex code: LSB-MSB')
-    for line in sig_list:
-        print('#HEX:LSB ', end='')
-        for s in line:
-            if s[0] in CHR_ZERO + CHR_ONE:
-                s = s[::-1]
-                hex_len = int(len(s) / 4 + 0.99)
-                hex_str = ('0' * hex_len + '%X' % int(s, 2))[-hex_len:]
-                print(hex_str + ' ', end='')
-            else:
-                print(s + ' ', end='')
-        print()
+    ## print hex code
+    print('# Hex code: LSB first')
+    print_hex_code(sig_list, '#HEX:LSB ', False)
     print()
     
 
@@ -175,7 +170,6 @@ def main():
             v = int(value)
             if int(v) > SIG_LONG:
                 v = SIG_LONG
-            #sig_raw.append(int(v))
             sig[key].append(int(v))
 
     sig_raw = sig_to_sig_raw(sig)
@@ -264,6 +258,7 @@ def main():
     
     ## is sony ?
     sony_type = False
+    '''
     if sig_normalize[0] >= 3 and sig_normalize[0] <= 5 and sig_normalize[1] == 1:
         ## SONY type
         print('SONY type !')
@@ -275,7 +270,7 @@ def main():
         #print('sig_raw =', sig_raw)
         sig_normalize.insert(0, round(SIG_LONG / sig_mode['space'][0]))
         #print('sig_normalize =', sig_normalize)
-    
+    '''
     if len(sig_raw) % 2 != 0:
         sig_raw.append(SIG_LONG)
         sig_normalize.append(round(SIG_LONG / sig_mode['space'][0]))
@@ -317,77 +312,81 @@ def main():
 
     
     ## 信号パターン判定
+    sig_ptn_work = sig_ptn[:]
+    
+    # 'leader'
+    t1a = sig_normalize_pair[0][0]
+    t2a = sig_normalize_pair[0][1]
     ir_sig = {}
-
+    ir_sig[t1a, t2a] = SIG_CH['leader']
+    sig_ptn_work.remove([t1a, t2a])
+    
     # '0'
-    print('[%s]:\t\t' % CHR_ZERO, end='')
-    ir_sig[1,1] = CHR_ZERO
+    print('[%s]zero:\t' % SIG_CH['zero'], end='')
+    ir_sig[1,1] = SIG_CH['zero']
     try:
-        sig_ptn.remove([1, 1])
+        sig_ptn_work.remove([1, 1])
     except ValueError:
         print('!! Error: [1, 1]: not found')
         sys.exit(1)
     print('1T+1T * %d\t' % (freq_dist(1, 1)))
     
-    # 'leader'
-    print('[%s]leader:\t' % CHR_LEADER, end='')
-    t1a = sig_normalize_pair[0][0]
-    t2a = sig_normalize_pair[0][1]
-    sig_ptn1 = []
-    for [t1, t2] in sig_ptn:
-        if t1 >= 2 and abs(t1 - t1a) <= 1 and abs(t2 - t2a) <= 1:
-            ir_sig[t1, t2] = CHR_LEADER
+    # '1'
+    print('[%s]one:\t\t' % SIG_CH['one'], end='')
+    sig_ptn_a = sig_ptn_work[:]
+    for [t1, t2] in sig_ptn_a:
+        if ( t1 == 1 and t2 >= 2 and t2 <= 4) or ( t1 >= 2 and t1 <= 4 and t2 == 1 ):
+            ir_sig[t1, t2] = SIG_CH['one']
             print('%dT+%dT * %d\t' % (t1, t2, freq_dist(t1, t2)), end='')
-        else:
-            sig_ptn1.append([t1, t2])
+            sig_ptn_work.remove([t1, t2])
     print()
 
-    # repeat?
-    print('[%s]repeat?:\t' % CHR_REPEAT, end='')
-    sig_ptn2 = []
-    for [t1, t2] in sig_ptn1:
-        if t1 >= 3 and t2 >= 3:
-            ir_sig[t1, t2] = CHR_REPEAT
+    # 'leader'
+    print('[%s]leader:\t' % SIG_CH['leader'], end='')
+    sig_ptn_a = sig_ptn_work[:]
+    for [t1, t2] in sig_ptn_a:
+        if t1 > 2 and abs(t1 - t1a) <= 1 and abs(t2 - t2a) <= 1:
+            ir_sig[t1, t2] = SIG_CH['leader']
             print('%dT+%dT * %d\t' % (t1, t2, freq_dist(t1, t2)), end='')
-        else:
-            sig_ptn2.append([t1, t2])
+            sig_ptn_work.remove([t1, t2])
     print()
 
     # 'trailer'
-    print('[%s]trailer:\t' % CHR_TRAILER, end='')
-    sig_ptn3 = []
-    for [t1, t2] in sig_ptn2:
+    print('[%s]trailer:\t' % SIG_CH['trailer'], end='')
+    sig_ptn_a = sig_ptn_work[:]
+    for [t1, t2] in sig_ptn_a:
         if t1 == 1 and t2 >= 6:
-            ir_sig[t1, t2] = CHR_TRAILER
+            ir_sig[t1, t2] = SIG_CH['trailer']
             print('%dT+%dT * %d\t' % (t1, t2, freq_dist(t1, t2)), end='')
-        else:
-            sig_ptn3.append([t1, t2])
+            sig_ptn_work.remove([t1, t2])
     print()
 
-    # '1'
-    print('[%s]:\t\t' % CHR_ONE, end='')
-    sig_ptn4 = []
-    for [t1, t2] in sig_ptn3:
-        if ( t1 == 1 and t2 >= 2 ) or ( t1 >= 2 and t2 == 1 ):
-            ir_sig[t1, t2] = CHR_ONE
+    # repeat?
+    print('[%s]repeat?:\t' % SIG_CH['repeat'], end='')
+    sig_ptn_a = sig_ptn_work[:]
+    for [t1, t2] in sig_ptn_a:
+        if t1 >= 2 and t2 >= 2:
+            ir_sig[t1, t2] = SIG_CH['repeat']
             print('%dT+%dT * %d\t' % (t1, t2, freq_dist(t1, t2)), end='')
-        else:
-            sig_ptn4.append([t1, t2])
+            sig_ptn_work.remove([t1, t2])
     print()
 
     # '?'
-    print('[%s]:\t\t' % CHR_MISC, end='')
-    for [t1, t2] in sig_ptn4:
-        ir_sig[t1, t2] = CHR_MISC
+    print('[%s]misc:\t\t' % SIG_CH['misc'], end='')
+    sig_ptn_a = sig_ptn_work[:]
+    for [t1, t2] in sig_ptn_a:
+        ir_sig[t1, t2] = SIG_CH['misc']
         print('%dT+%dT * %d\t' % (t1, t2, freq_dist(t1, t2)), end='')
+        sig_ptn_work.remove([t1, t2])
+    print()
     print()
 
-    print()
-
+    #print('# ir_sig =', ir_sig)
+    #print()
     
     ## make signal string list
     sig_str = mk_sig_str(sig_normalize_pair, ir_sig)
-    sig_line = re.sub(CHR_LEADER, ' '+CHR_LEADER, sig_str).split()
+    sig_line = re.sub(SIG_CH['leader'], ' '+SIG_CH['leader'], sig_str).split()
     sig_list = []
     for l in sig_line:
         sig_list.append(re.sub('(\D)', ' \\1 ', l).split())
@@ -396,11 +395,11 @@ def main():
 
     #print(sig_list)
     
-    print('# SONY Type: -1 bit decoding')
+    print('# for SONY Type: -1 bit decoding')
     print()
     for idx1 in range(len(sig_list)):
         for idx2 in range(len(sig_list[idx1])):
-            if sig_list[idx1][idx2][0] in CHR_ZERO + CHR_ONE:
+            if sig_list[idx1][idx2][0] in SIG_CH_01:
                 if len(sig_list[idx1][idx2]) > 1:
                     sig_list[idx1][idx2] = sig_list[idx1][idx2][:-1]
 
@@ -423,7 +422,7 @@ def main():
         v2 = sig_raw.pop(0)
         sig_sum += v1 + v2
 
-        if sym in CHR_ZERO + CHR_ONE:
+        if sym in SIG_CH_01:
             print('%4d %4d ' % (v1, v2), end='')
             nl_flag = False
             count += 1
