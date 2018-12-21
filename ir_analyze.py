@@ -9,7 +9,7 @@ import pprint
 
 MYNAME		= os.path.basename(sys.argv[0])
 
-SIG_LONG	= 59999
+SIG_LONG	= 99999
 
 DEF_FACTOR	= 1.7
 FIX_FACTOR	= 1.3
