@@ -122,26 +122,28 @@ def print_hex_code(sig_list, prefix='', msb_first=True):
         print()
 
 ## decode signal
-def decode_signal(sig_list):
-    print('## MSB first')
+def decode_signal(sig_list, prefix=''):
+    pre_str = '#' + prefix
+    
+    print(pre_str + '# MSB first')
 
     ## print bit pattern
-    print('# bit pattern: MSB first')
-    print_bit_pattern(sig_list, '#BIT:MSB ', True);
+    print(pre_str + ' bit pattern: MSB first')
+    print_bit_pattern(sig_list, pre_str + 'BIT:MSB ', True);
 
     ## print hex code
-    print('# Hex code: MSB first')
-    print_hex_code(sig_list, '#HEX:MSB ', True)
+    print(pre_str + ' Hex code: MSB first')
+    print_hex_code(sig_list, pre_str + 'HEX:MSB ', True)
 
-    print('## LSB first')
+    print(pre_str + '# LSB first')
 
     ## print bit pattern
-    print('# bit pattern: LSB first')
-    print_bit_pattern(sig_list, '#BIT:LSB ', False)
+    print(pre_str + ' bit pattern: LSB first')
+    print_bit_pattern(sig_list, pre_str + 'BIT:LSB ', False)
 
     ## print hex code
-    print('# Hex code: LSB first')
-    print_hex_code(sig_list, '#HEX:LSB ', False)
+    print(pre_str + ' Hex code: LSB first')
+    print_hex_code(sig_list, pre_str + 'HEX:LSB ', False)
     
 
 ##### main
@@ -436,7 +438,7 @@ def main():
 
     #print(sig_list)
     
-    print('### for SONY Type: -1 bit decoding')
+    print('#[-1bit]## for SONY Type: -1 bit decoding')
     for idx1 in range(len(sig_list)):
         for idx2 in range(len(sig_list[idx1])):
             if sig_list[idx1][idx2][0] in SIG_CH_01:
@@ -444,7 +446,7 @@ def main():
                     sig_list[idx1][idx2] = sig_list[idx1][idx2][:-1]
 
     #print(sig_list)
-    decode_signal(sig_list)
+    decode_signal(sig_list, '[-1bit]')
     
     ## print lirc.conf raw codes
     print('# raw codes')
