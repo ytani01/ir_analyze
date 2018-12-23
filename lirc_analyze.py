@@ -1,9 +1,16 @@
 #!/usr/bin/python3 -u
 #
+# (c) 2018 Yoichi Tanibayashi
+#
+# !!! IMPORTANT !!!
+#
+#	-u option of python command is mandatory
+#
 import sys, os
 import click
 import subprocess, threading, queue
 import time
+import builtins
 
 SIG_LONG	= 99999 # usec
 
@@ -16,7 +23,17 @@ SIG_CH		= {
     'misc':	'?'
 }
 
+Mode		= 'mode2.out'
+
+HexOnly		= False
+BinOnly		= False
+
 #####
+##
+def print(*args, sep=' ', end='\n', file=None, force_out=False):
+    if ( not HexOnly and not BinOnly ) or force_out:
+        builtins.print(*args, sep=sep, end=end, file=file)
+    
 ##
 class CmdOut(threading.Thread):
     def __init__(self, cmd):
@@ -42,9 +59,9 @@ class CmdOut(threading.Thread):
     def __del__(self):
         pass
 
-    def readline(self, t=1):
+    def readline(self, tout=0.6):
         try:
-            line = self.lineq.get(block=True, timeout=t)
+            line = self.lineq.get(block=True, timeout=tout)
         except queue.Empty:
             line = None
         return line
@@ -55,16 +72,26 @@ class CmdOut(threading.Thread):
         self.proc.wait()
 
 ## データ読み込み
-def load_input(file, mode2, cmd_name=''):
+def load_input(file, cmd_name='', mode2=False, forever=False):
+    global Mode
+
+    tout = 0.6
+    if forever:
+        tout = 0.1
+        
     raw_data = {'pulse':[], 'space':[]}
     
     file_flag = False
-    if len(file) > 0:
-        f =open(file)
-        file_flag = True
-    elif mode2:
+    if Mode == 'mode2':
         f = CmdOut(['mode2'])
         f.start()
+    elif file != '':
+        try:
+            f =open(file)
+        except FileNotFoundError:
+            print('Error: No such file:%s' % file, file=sys.stderr)
+            return None
+        file_flag = True
     else:
         f = sys.stdin
 
@@ -72,11 +99,17 @@ def load_input(file, mode2, cmd_name=''):
     n = 0
     w_count = 5
     while True:
-        line = f.readline()
+        line = f.readline(tout = tout)
         if not line:
-            if mode2:
+            # mode2 の場合
+            if Mode == 'mode2':
                 if data_start:
                     break
+
+                if forever:
+                    continue
+
+                # 入力をしばらく待ち、何も入力がなければ終了
                 w_count -= 1
                 if w_count > 0 and w_count <= 3:
                     print('%d!..' % w_count, end='', file=sys.stderr)
@@ -87,24 +120,62 @@ def load_input(file, mode2, cmd_name=''):
                     print('END', file=sys.stderr)
                     sys.stderr.flush()
             break
+        
         data = line.split()
         if not data_start:
+            # データ部分の最初を探す
             if len(data) == 0:
                 continue
-            if data[0] == 'space':
-                data_start = True
-                print('', file=sys.stderr)
-                sys.stderr.flush()
+
+            if Mode != 'lircd.conf':
+                if data[0] == 'space':
+                    data_start = True
+                    print(file=sys.stderr)
+                    sys.stderr.flush()
+            else: # lircd.conf
+                #print(data)
+                if data[0] == 'name' and data[1] == cmd_name:
+                    data_start = True
+                    key = 'pulse'
+                    print(file=sys.stderr)
+                    sys.stderr.flush()
             continue
 
-        [key, usec] = data
-        usec = int(usec)
-        raw_data[key].append(usec)
+        if Mode == 'lircd.conf':
+            # 以下のような数値の羅列
+            # name on
+            #   4000 3000 2000 1000 500 1000 500 ..
+            if len(data) == 0:
+                continue
+            
+            if not data[0].isdigit():
+                # data end
+                break
+            
+            for us in data:
+                if not us.isdigit():
+                    print('Error:Invalid data:', data)
+                    return None
 
-        try:
+                raw_data[key].append(int(us))
+                
+                n += 1
+                key = ['pulse', 'space'][n % 2]
+                #print(key, ' ', end='')
+        
+        else: # mode2, mode2.out
+            # mode2コマンドの出力形式
+            #	pulse 600
+            #   space 500
+            #   :
+            [key, us] = data
+            us = int(us)
+            raw_data[key].append(us)
             n += 1
-            if mode2:
-                sig_len = int(usec / 500)
+
+        if Mode == 'mode2':
+            try:
+                sig_len = int(us / 500)
                 if sig_len == 0:
                     sig_len = 1
                 if sig_len > 20:
@@ -115,22 +186,24 @@ def load_input(file, mode2, cmd_name=''):
                         ch = '*'
                     print(ch, end='', file=sys.stderr)
                 sys.stderr.flush()
-        except BrokenPipeError:
-            break
+            except BrokenPipeError:
+                break
 
-    if file_flag:
-        f.close()
-    if mode2:
+    if Mode == 'mode2':
         f.close()
         f.join()
+    elif file_flag:
+        f.close()
 
     if not data_start:
         return None
 
     raw_data['space'].append(SIG_LONG)
+    if len(raw_data['pulse']) != len(raw_data['space']):
+        print('! Error: invalid data', raw_data, file=sys.stderr)
+        return None
 
-    print(' [%d]' % n, file=sys.stderr)
-    sys.stderr.flush()
+    print('# Ndata: %d' % n)
     
     if len(raw_data['pulse']) == len(raw_data['space']):
         return raw_data
@@ -162,16 +235,15 @@ def get_t1(data):
     return round(sum(t1_list) / len(t1_list))
 
 ## データ出力
-def print_data(data, pair_list, pair_to_sig):
+def print_data(raw_data, pair_list, pair_to_sig, sig_to_pair, T1, raw_out):
     sig_str = ''
     sig_usec = 0
     idx = 0
     for [t1, t2] in pair_list:
         ch = SIG_CH[pair_to_sig[t1, t2]]
-        sig_usec += data['pulse'][idx] + data['space'][idx]
-        #print('%4d, %4d: %d' % (data['pulse'][idx], data['space'][idx], sig_usec))
+        sig_usec += raw_data['pulse'][idx] + raw_data['space'][idx]
         if ch == SIG_CH['trailer']:
-            sig_usec -= data['pulse'][idx] + data['space'][idx]
+            sig_usec -= raw_data['pulse'][idx] + raw_data['space'][idx]
             sig_str += ' %s%dus%s ' % (':', sig_usec, ch)
             sig_usec = 0
         else:
@@ -181,26 +253,22 @@ def print_data(data, pair_list, pair_to_sig):
     for key in ['leader', 'repeat', 'misc']:
         sig_str = sig_str.replace(SIG_CH[key], ' ' + SIG_CH[key] + ' ')
 
-    sig_str_list = sig_str.split()
+    sig_str_list = [[]]
+    for s in sig_str.split():
+        sig_str_list[-1].append(s)
+        if s[-1] == '/':
+            sig_str_list.append([])
+    if len(sig_str_list[-1]) == 0:
+        sig_str_list.pop(-1)
 
     print_bit_pattern(sig_str_list, '# bit pattern', '## BIT: ')
+    print()
     print_hex_data(sig_str_list, '# hex data', '## HEX: ')
 
-## ビットパターン出力
-def print_bit_pattern(list, title='', prefix=''):
-    if len(title) > 0:
-        print(title)
-    n = 0
-    for s in list:
-        n += 1
-        if s == SIG_CH['leader']:
-            if n > 1:
-                print()
-            print(prefix, end='')
-        if s[0] in SIG_CH['zero'] + SIG_CH['one']:
-            s = split_str(s, 4)
-        print(s + ' ', end='')
-    print()
+    if raw_out:
+        print()
+        print_raw_data(sig_str_list, raw_data, pair_list, T1,
+                       '# raw data for lircd.conf')
 
 ## 文字列<s>を指定した文字数<n>毎に分割
 def split_str(s, n):
@@ -212,40 +280,123 @@ def split_str(s, n):
     s = s[::-1]
     return s
 
-## 16進データ出力
-def print_hex_data(list, title='', prefix=''):
-    if len(title) > 0:
+## ビットパターン出力
+def print_bit_pattern(sig_list, title='', prefix=''):
+    if title != '':
         print(title)
-    n = 0
-    for s in list:
-        n += 1
-        if s == SIG_CH['leader']:
-            if n > 1:
-                print()
-            print(prefix, end='')
-        if s[0] in SIG_CH['zero'] + SIG_CH['one']:
-            hex_len = int(len(s) / 4 + 0.99)
-            s = ('0' * hex_len + '%X' % int(s, 2))[-hex_len:]
-            #s = split_str(s, 4)
-        print(s + ' ', end='')
-    print()
-        
+
+    f1 = False
+    f2 = False
+    for line in sig_list:
+        print(prefix, end='')
+        for s in line:
+            if s[0] in SIG_CH['zero'] + SIG_CH['one']:
+                s = split_str(s, 4)
+                if BinOnly:
+                    f1 = True
+                    f2 = True
+            print(s + ' ', end='', force_out=f1)
+            f1 = False
+        print(force_out=f2)
+        f2 = False
+
+## 16進データ出力
+def print_hex_data(sig_list, title='', prefix=''):
+    if title != '':
+        print(title)
+    f1 = False
+    f2 = False
+    for line in sig_list:
+        print(prefix, end='')
+        for s in line:
+            if s[0] in SIG_CH['zero'] + SIG_CH['one']:
+                hex_len = int(len(s) / 4 + 0.99)
+                s = ('0' * hex_len + '%X' % int(s, 2))[-hex_len:]
+                if HexOnly:
+                    f1 = True
+                    f2 = True
+            print(s + ' ', end='', force_out=f1)
+            f1 = False
+        print(force_out=f2)
+        f2 = False
+
+## lircd.conf raw形式の出力
+def print_raw_data(sig_str_list, raw_data, pair_list, T1, title=''):
+    if title != '':
+        print(title)
+
+    print('\tname\tcommand')
+    idx = 0
+    for line in sig_str_list:
+        for sig in line:
+            if sig[0] in SIG_CH['zero'] + SIG_CH['one']:
+                n = 0
+                for s in sig:
+                    if n % 4 == 0 and n != 0:
+                        print()
+                    t1 = raw_data['pulse'][idx]
+                    t2 = raw_data['space'][idx]
+                    print('%5d %5d ' % (t1, t2), end='')
+                    idx += 1
+                    n += 1
+            else:
+                t1 = raw_data['pulse'][idx]
+                t2 = raw_data['space'][idx]
+                print('%5d %5d ' % (t1, t2), end='')
+                idx += 1
+            print()
     
 ##### main
-@click.command(help='IR Analyzer')
+@click.command(help='LIRC IR Analyzer')
+@click.argument('infile', metavar='[input_file]', default='',
+                type=click.Path())
+@click.argument('cmd_name', metavar='[cmd]', default='')
 @click.option('--mode2', '-m', is_flag=True, default=False,
               help='input from mode2 command')
-@click.argument('infile', metavar='[input_file]', default='')
-def main(infile, mode2):
-    raw_data = load_input(infile, mode2)
+@click.option('--raw', '-r', is_flag=True, default=False,
+              help='output raw data for lircd.conf')
+@click.option('--forever', '-f', is_flag=True, default=False,
+              help='loop forever')
+@click.option('--hexonly', '-h', is_flag=True, default=False,
+              help='output hex code only')
+@click.option('--binonly', '--bitonly', '-b', is_flag=True, default=False,
+              help='output bit pattern code only')
+def main(infile, cmd_name, mode2, raw, forever, hexonly, binonly):
+    global Mode
+    global HexOnly
+    global BinOnly
+
+    HexOnly = hexonly
+    BinOnly = binonly
+    
+    if infile != '':
+        print('# infile   :', infile)
+    if cmd_name != '':
+        print('# cmd_name :', cmd_name)
+    if mode2:
+        print('# mode2    :', mode2)
+    if raw:
+        print('# raw      :', raw)
+
+    Mode = 'mode2.out'
+    if mode2:
+        Mode = 'mode2'
+    elif len(infile) > 0:
+        Mode = 'mode2.out'
+        if len(cmd_name) > 0:
+            Mode = 'lircd.conf'
+    print('# Mode     :', Mode)
+
+    raw_data = load_input(infile, cmd_name, mode2, forever)
     while raw_data:
-        decode_sig(raw_data, mode2)
-        print(file=sys.stderr)
+        decode_sig(raw_data, mode2, raw)
+        print()
+
         raw_data = None
-        if mode2:
-            raw_data = load_input(infile, mode2)
+        if Mode == 'mode2':
+            raw_data = load_input(infile, cmd_name, mode2, forever)
         
-def decode_sig(raw_data, mode2):
+def decode_sig(raw_data, mode2, raw):
     fq_dist		= {'pulse':[], 'space':[]}
     T1			= {'pulse': 0, 'space': 0}
     idx_list		= {'pulse':[], 'space':[]}
@@ -298,8 +449,7 @@ def decode_sig(raw_data, mode2):
     # 信号パターンを抽出
     #
     sig_pattern = sorted(list(map(list, set(map(tuple, pair_list)))))    
-    #print(sig_pattern)
-    if sig_pattern[0] != [1, 1]:
+    if [round(sig_pattern[0][0]), round(sig_pattern[0][1])] != [1, 1]:
         print('! Error: [1, 1] is not found')
 
     #
@@ -360,8 +510,22 @@ def decode_sig(raw_data, mode2):
         # unknown
         pair_to_sig[p1, p2] = 'misc'
 
-    print('# sig_format = %s' % sig_format)
-    print('#', pair_to_sig)
+    #print('#', pair_to_sig)
+
+    sig_to_pair = {}
+    for pair in pair_to_sig.keys():
+        sig = pair_to_sig[pair]
+        if sig not in sig_to_pair.keys():
+            sig_to_pair[sig] = []
+        sig_to_pair[sig].append(pair)
+    for sig in sig_to_pair.keys():
+        print('## %-8s:' % sig, end='')
+        for p in sig_to_pair[sig]:
+            print(p, ' ', end='')
+        print()
+
+    print('# Signal Format: %s' % sig_format)
+    print()
 
     # leader が見つからなかった場合、他の信号パターンで代用
     if 'leader' not in pair_to_sig.values():
@@ -374,7 +538,7 @@ def decode_sig(raw_data, mode2):
     #
     # 解析に基づいて、信号を解読
     #
-    print_data(raw_data, pair_list, pair_to_sig)
+    print_data(raw_data, pair_list, pair_to_sig, sig_to_pair, T1, raw)
 
 #####
 if __name__ == '__main__':
