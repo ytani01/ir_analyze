@@ -22,6 +22,7 @@ SIG_CH		= {
     'repeat':	'*',
     'misc':	'?'
 }
+SIG_STR_01	= SIG_CH['zero'] + SIG_CH['one']
 
 Mode		= 'mode2.out'
 
@@ -99,7 +100,10 @@ def load_input(file, cmd_name='', mode2=False, forever=False):
     n = 0
     w_count = 5
     while True:
-        line = f.readline(tout = tout)
+        if Mode == 'mode2':
+            line = f.readline(tout = tout)
+        else:
+            line = f.readline()
         if not line:
             # mode2 の場合
             if Mode == 'mode2':
@@ -127,18 +131,19 @@ def load_input(file, cmd_name='', mode2=False, forever=False):
             if len(data) == 0:
                 continue
 
-            if Mode != 'lircd.conf':
-                if data[0] == 'space':
-                    data_start = True
-                    print(file=sys.stderr)
-                    sys.stderr.flush()
-            else: # lircd.conf
-                #print(data)
-                if data[0] == 'name' and data[1] == cmd_name:
+            if Mode == 'lircd.conf':
+                if len(data) == 2 and \
+                   data[0] == 'name' and data[1] == cmd_name:
                     data_start = True
                     key = 'pulse'
                     print(file=sys.stderr)
                     sys.stderr.flush()
+            else:
+                if data[0] == 'space':
+                    data_start = True
+                    print(file=sys.stderr)
+                    sys.stderr.flush()
+
             continue
 
         if Mode == 'lircd.conf':
@@ -198,7 +203,8 @@ def load_input(file, cmd_name='', mode2=False, forever=False):
     if not data_start:
         return None
 
-    raw_data['space'].append(SIG_LONG)
+    if len(raw_data['pulse']) == len(raw_data['space']) + 1:
+        raw_data['space'].append(SIG_LONG)
     if len(raw_data['pulse']) != len(raw_data['space']):
         print('! Error: invalid data', raw_data, file=sys.stderr)
         return None
@@ -235,7 +241,8 @@ def get_t1(data):
     return round(sum(t1_list) / len(t1_list))
 
 ## データ出力
-def print_data(raw_data, pair_list, pair_to_sig, sig_to_pair, T1, raw_out):
+def print_data(raw_data, pair_list, pair_to_sig, sig_to_pair, T1,
+               out_raw=False, out_normalize=False):
     sig_str = ''
     sig_usec = 0
     idx = 0
@@ -265,10 +272,13 @@ def print_data(raw_data, pair_list, pair_to_sig, sig_to_pair, T1, raw_out):
     print()
     print_hex_data(sig_str_list, '# hex data', '## HEX: ')
 
-    if raw_out:
+    if out_raw:
         print()
-        print_raw_data(sig_str_list, raw_data, pair_list, T1,
-                       '# raw data for lircd.conf')
+        print_raw_data(sig_str_list, raw_data, '# raw data for lircd.conf')
+    if out_normalize:
+        print()
+        print_normalized_data(sig_str_list, pair_list, T1,
+                              '# normalized raw data for lircd.conf')
 
 ## 文字列<s>を指定した文字数<n>毎に分割
 def split_str(s, n):
@@ -290,7 +300,7 @@ def print_bit_pattern(sig_list, title='', prefix=''):
     for line in sig_list:
         print(prefix, end='')
         for s in line:
-            if s[0] in SIG_CH['zero'] + SIG_CH['one']:
+            if s[0] in SIG_STR_01:
                 s = split_str(s, 4)
                 if BinOnly:
                     f1 = True
@@ -309,7 +319,7 @@ def print_hex_data(sig_list, title='', prefix=''):
     for line in sig_list:
         print(prefix, end='')
         for s in line:
-            if s[0] in SIG_CH['zero'] + SIG_CH['one']:
+            if s[0] in SIG_STR_01:
                 hex_len = int(len(s) / 4 + 0.99)
                 s = ('0' * hex_len + '%X' % int(s, 2))[-hex_len:]
                 if HexOnly:
@@ -321,15 +331,15 @@ def print_hex_data(sig_list, title='', prefix=''):
         f2 = False
 
 ## lircd.conf raw形式の出力
-def print_raw_data(sig_str_list, raw_data, pair_list, T1, title=''):
+def print_raw_data(sig_str_list, raw_data, title=''):
     if title != '':
         print(title)
 
-    print('\tname\tcommand')
+    print('\tname\traw')
     idx = 0
     for line in sig_str_list:
         for sig in line:
-            if sig[0] in SIG_CH['zero'] + SIG_CH['one']:
+            if sig[0] in SIG_STR_01:
                 n = 0
                 for s in sig:
                     if n % 4 == 0 and n != 0:
@@ -345,7 +355,33 @@ def print_raw_data(sig_str_list, raw_data, pair_list, T1, title=''):
                 print('%5d %5d ' % (t1, t2), end='')
                 idx += 1
             print()
-    
+
+def print_normalized_data(sig_str_list, pair_list, T1, title=''):
+    if title != '':
+        print(title)
+
+    print('\tname\tnormalize')
+    idx = 0
+    for line in sig_str_list:
+        for sig in line:
+            if sig[0] in SIG_STR_01:
+                n = 0
+                for s in sig:
+                    if n % 4 == 0 and n != 0:
+                        print()
+                    t1 = pair_list[idx][0] * T1['pulse']
+                    t2 = pair_list[idx][1] * T1['space']
+                    print('%5d %5d ' % (t1, t2), end='')
+                    idx += 1
+                    n += 1
+            else:
+                t1 = round(pair_list[idx][0] * T1['pulse'])
+                t2 = round(pair_list[idx][1] * T1['space'])
+                print('%5d %5d ' % (t1, t2), end='')
+                idx += 1
+            print()
+
+
 ##### main
 @click.command(help='LIRC IR Analyzer')
 @click.argument('infile', metavar='[input_file]', default='',
@@ -355,13 +391,15 @@ def print_raw_data(sig_str_list, raw_data, pair_list, T1, title=''):
               help='input from mode2 command')
 @click.option('--raw', '-r', is_flag=True, default=False,
               help='output raw data for lircd.conf')
+@click.option('--normalize', '-n', is_flag=True, default=False,
+              help='output normalized data for lircd.conf')
 @click.option('--forever', '-f', is_flag=True, default=False,
               help='loop forever')
 @click.option('--hexonly', '-h', is_flag=True, default=False,
               help='output hex code only')
 @click.option('--binonly', '--bitonly', '-b', is_flag=True, default=False,
               help='output bit pattern code only')
-def main(infile, cmd_name, mode2, raw, forever, hexonly, binonly):
+def main(infile, cmd_name, mode2, raw, normalize, forever, hexonly, binonly):
     global Mode
     global HexOnly
     global BinOnly
@@ -389,14 +427,14 @@ def main(infile, cmd_name, mode2, raw, forever, hexonly, binonly):
 
     raw_data = load_input(infile, cmd_name, mode2, forever)
     while raw_data:
-        decode_sig(raw_data, mode2, raw)
+        decode_sig(raw_data, mode2, raw, normalize)
         print()
 
         raw_data = None
         if Mode == 'mode2':
             raw_data = load_input(infile, cmd_name, mode2, forever)
         
-def decode_sig(raw_data, mode2, raw):
+def decode_sig(raw_data, mode2, raw, normalize):
     fq_dist		= {'pulse':[], 'space':[]}
     T1			= {'pulse': 0, 'space': 0}
     idx_list		= {'pulse':[], 'space':[]}
@@ -513,15 +551,24 @@ def decode_sig(raw_data, mode2, raw):
     #print('#', pair_to_sig)
 
     sig_to_pair = {}
+    sig_to_usec = {}
     for pair in pair_to_sig.keys():
         sig = pair_to_sig[pair]
         if sig not in sig_to_pair.keys():
             sig_to_pair[sig] = []
         sig_to_pair[sig].append(pair)
-    for sig in sig_to_pair.keys():
+        if sig not in sig_to_usec.keys():
+            sig_to_usec[sig] = []
+        sig_to_usec[sig].append([round(T1['pulse'] * list(pair)[0]),
+                                       round(T1['space'] * list(pair)[1])])
+
+    for sig in ['leader', 'zero', 'one', 'trailer', 'repeat', 'misc']:
         print('## %-8s:' % sig, end='')
-        for p in sig_to_pair[sig]:
-            print(p, ' ', end='')
+        if sig not in sig_to_pair.keys():
+            print()
+            continue
+        for i, p in enumerate(sig_to_pair[sig]):
+            print(str(p)+str(sig_to_usec[sig][i]), ' ', end='')
         print()
 
     print('# Signal Format: %s' % sig_format)
@@ -538,7 +585,8 @@ def decode_sig(raw_data, mode2, raw):
     #
     # 解析に基づいて、信号を解読
     #
-    print_data(raw_data, pair_list, pair_to_sig, sig_to_pair, T1, raw)
+    print_data(raw_data, pair_list, pair_to_sig, sig_to_pair, T1,
+               raw, normalize)
 
 #####
 if __name__ == '__main__':
