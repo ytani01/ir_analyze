@@ -50,7 +50,7 @@ dtparam=gpio_in_pull=up
 $ sudo reboot
 ```
 
-## 2. LIRC 学習・設定
+## [Deprecated] 2. LIRC 学習・設定
 
 ```bash
 $ sudo service lircd stop

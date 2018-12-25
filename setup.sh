@@ -2,7 +2,7 @@
 
 BINDIR=${HOME}/bin
 REQUIRMENTS=requirements.txt
-CMD=lirc_analyze.py
+CMD=lirc-analyze.py
 
 if [ -f ${REQUIRMENTS} ]; then
     sudo pip3 install -r requirements.txt
