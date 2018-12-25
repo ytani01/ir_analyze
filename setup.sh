@@ -5,7 +5,7 @@ REQUIRMENTS=requirements.txt
 CMD=lirc_analyze.py
 
 if [ -f ${REQUIRMENTS} ]; then
-    pip3 install -r requirements.txt
+    sudo pip3 install -r requirements.txt
 fi
 
 if [ ! -d ${BINDIR} ]; then
