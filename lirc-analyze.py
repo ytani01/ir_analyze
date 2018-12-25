@@ -483,7 +483,10 @@ class SigData:
             n += 1
             tp = self.raw_data[i][0]
             ts = self.raw_data[i][1]
-            print('%5d %5d ' % (tp, ts), end='', disp='raw')
+            if i < len(sig_str) - 1:
+                print('%5d %5d ' % (tp, ts), end='', disp='raw')
+            else:
+                print('%5d' % tp, disp='raw')
             if ch not in SIG_STR_01 or n % 4 == 0:
                 print(disp='raw')
                 n = 0
@@ -505,7 +508,10 @@ class SigData:
             n += 1
             tp = self.n_list[i][0] * self.T1
             ts = self.n_list[i][1] * self.T1
-            print('%5d %5d ' % (tp, ts), end='', disp='norm')
+            if i < len(sig_str) -1:
+                print('%5d %5d ' % (tp, ts), end='', disp='norm')
+            else:
+                print('%5d' % tp, disp='norm')
             if ch not in SIG_STR_01 or n % 4 == 0:
                 print(disp='norm')
                 n = 0
