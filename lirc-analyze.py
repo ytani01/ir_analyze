@@ -326,7 +326,8 @@ class SigData:
             if n1 == self.n_list[0][0] and n2 == self.n_list[0][1]:
                 self.sig2n['leader'].append(p)
                 continue
-            if len(self.sig2n['one']) == 0 and ((n1 == 1 and n2 > 1) or (n1 > 1 and n2 == 1)):
+            if len(self.sig2n['one']) == 0 and \
+               ((n1 == 1 and n2 > 1) or (n1 > 1 and n2 == 1)):
                 self.sig2n['one'].append(p)
                 continue
             self.sig2n['misc'].append(p)
@@ -348,7 +349,7 @@ class SigData:
         for key in ['leader', 'zero', 'one', 'trailer', 'repeat', 'misc']:
             print('## %-8s: %s' % (key, str(self.sig2n[key])))
 
-        # 信号のリストを生成
+        # 信号パターンのリストを生成
         self.sig_list = []
         for n1, n2 in self.n_list:
             for key in self.sig2n.keys():
@@ -356,32 +357,41 @@ class SigData:
                     self.sig_list.append(key)
         #print('self.sig_list =', self.sig_list)
 
-        self.sig_line_usec = [0]
+        # 信号の文字列<sig_str>を生成
+        # 信号列毎の時間<sig_line_usec>も算出
         self.sig_str = ''
+        self.sig_line_usec = []
         for i, sig in enumerate(self.sig_list):
             if sig == 'leader':
                 self.sig_str += ' '
-            self.sig_str += SIG_CH[sig]
-            self.sig_line_usec[-1] += self.raw_data[i][0] + self.raw_data[i][0]
-            if sig == 'trailer':
-                self.sig_str += ' '
                 self.sig_line_usec.append(0)
+            self.sig_str += SIG_CH[sig]
+            if self.sig_line_usec == []:
+                self.sig_line_usec = [0]
+            self.sig_line_usec[-1] += self.raw_data[i][0] + self.raw_data[i][0]
         if self.sig_line_usec[-1] == 0:
             self.sig_line_usec.pop(-1)
-        #print(self.sig_str)
+        #print(self.sig_str, force=True)
 
+        # leaderを区切りとして、信号の列を区切る
         self.sig_line1 = self.sig_str.split()
-        #print(len(self.sig_line1), self.sig_line1)
-        #print(len(self.sig_line_usec), self.sig_line_usec)
+        #print(len(self.sig_line1), self.sig_line1, force=True)
+        #print(len(self.sig_line_usec), self.sig_line_usec, force=True)
 
+        # 信号の列の中をさらに分割
+        # 0,1の部分は分割しない
         self.sig_line = []
         for i, l1 in enumerate(self.sig_line1):
-            l2 = l1.replace('-', '- ')
-            l3 = l2.replace('/', ' /')
-            self.sig_line.append([l3.split(), self.sig_line_usec[i]])
+            #print(l1, force=True)
+            for key in SIG_CH.keys():
+                if SIG_CH[key] in SIG_STR_01:
+                    continue
+                l1 = l1.replace(SIG_CH[key], ' ' + SIG_CH[key] + ' ')
+                #print('"%s"' % l1, force=True)
+            self.sig_line.append([l1.split(), self.sig_line_usec[i]])
 
-        #print(self.sig_line1)
-        #print(self.sig_line)
+        #print(self.sig_line, force=True)
+
         return
     
     #
@@ -419,6 +429,9 @@ class SigData:
                         s = s[::-1]
                     s = split_str(s[::-1], 4)
                     s = s[::-1]
+
+                    if not DispFlag['info'] and d[1] != 'bit':
+                        print(prefix, end='', disp='bit')
                     d = ['bit', 'bit']
                 print('%s ' % s, end='', disp=d[0])
                 d[0] = 'info'
@@ -427,7 +440,7 @@ class SigData:
         return
 
     #
-    #
+    # display hex data
     #
     def disp_hex(self, title='', prefix='', lsb_first=False):
         global DispFlag
@@ -446,6 +459,9 @@ class SigData:
                     s = ('0' * hex_len + '%X' % int(s, 2))[-hex_len:]
                     s = split_str(s[::-1], 2)
                     s = s[::-1]
+                    
+                    if not DispFlag['info'] and d[1] != 'hex':
+                        print(prefix, end='', disp='hex')
                     d = ['hex', 'hex']
                 print('%s ' % s, end='', disp=d[0])
                 d[0] = 'info'
@@ -454,7 +470,7 @@ class SigData:
         return
 
     #
-    #
+    # display raw data
     #
     def disp_raw(self):
         if len(self.raw_data) == 0:
