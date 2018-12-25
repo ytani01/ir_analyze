@@ -469,7 +469,8 @@ def decode_sig(raw_data, mode2, raw, normalize):
                         t_val = 99
                     idx_list[key].append(t_val)
                     break
-    print('# T1[pulse, space] = [%d,%d]' % (T1['pulse'], T1['space']))
+    print('# T1[pulse, space] = [%d,%d] (%d)' % (T1['pulse'], T1['space'],
+                                                 T1['pulse'] + T1['space']))
 
     #
     # [pulse, space]ペアのリスト(係数と正規化した値)を作成
