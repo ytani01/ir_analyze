@@ -1,4 +1,33 @@
-# ir_analize.py
+# lirc-analyze.py
+
+## 0. lirc-analyze.py
+
+### 0.1 インストール
+
+```bash
+$ cd
+$ git clone https://github.com/ytani01/ir_analyze
+$ cd ir_analyze
+$ setup.sh
+```
+
+### 0.2 使い方
+
+```bash
+$ lirc-analyze --help
+Usage: lirc-analyze.py [OPTIONS] [INFILE] [BUTTON_NAME]
+
+  LIRC analyzer
+
+Options:
+  -f, --forever         loop forever
+  -i, -l, --disp_info   output information
+  -h, --disp_hex        output hex data
+  -b, --disp_bit        output bit pattern
+  -r, --disp_raw        output raw data
+  -n, --disp_normalize  output normalized data
+  --help                Show this message and exit.
+```
 
 ## 1. LIRCのインスト－ル
 
@@ -50,18 +79,22 @@ dtparam=gpio_in_pull=up
 $ sudo reboot
 ```
 
-## [Deprecated] 2. LIRC 学習・設定
+## 2. LIRC 学習・設定
 
 ```bash
 $ sudo service lircd stop
-$ mode2 | tee /tmp/a
-$ ir_analyze.py /tmp/a
-$ vi /etc/lirc/lircd.conf.d/device.conf
+$ lirc-analyze.py -n | tee /tmp/a
+$ sudo cp lircd.conf.template /etc/lirc/lircd.conf.d/device.conf
+$ sudo vi /etc/lirc/lircd.conf.d/device.conf
+(適切な場所で)
+:r /tmp/a
+(名前等の編集)
+:wq
+$ sudo service lircd start
 ```
 
 ## 3. LIRC リモコン操作
 
 ```bash
-$ sudo service lircd start
-$ irsend SEND_ONCE device command
+$ irsend SEND_ONCE device button
 ```
