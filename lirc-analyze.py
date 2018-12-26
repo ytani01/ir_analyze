@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3 -u
 #
 # (c) 2018 Yoichi Tanibayashi
 #
@@ -675,7 +675,7 @@ def main(infile, button_name,
             sig_data.disp_info()
             sig_data.print()
         else:
-            sig_data.print(sig_data.get_sig_format())
+            sig_data.print('# %s' % sig_data.get_sig_format())
 
         if sig_data.disp_flag['bit']:
             if sig_data.disp_flag['info']:
