@@ -2,11 +2,12 @@
 #
 # (c) 2018 Yoichi Tanibayashi
 #
-import sys
+import os, sys
 import click
 import builtins
 
 import CmdOut
+from MisakiFont import MisakiFont
 
 #####
 #
@@ -413,6 +414,7 @@ class SigData:
                 self.sig_format_str += f + ' '
         else:
             self.sig_format_str = '??? '
+        self.sig_format_str = self.sig_format_str.strip()
 
         # 信号名リストを生成
         self.sig_list = []
@@ -630,15 +632,21 @@ class SigData:
               help='display normalized data')
 @click.option('--disp_lsb', '--lsb', '-l', is_flag=True, default=False,
               help='display LSB first')
+@click.option('--oled', '-o', is_flag=True, default=False,
+              help='OLED output')
 @click.option('--timeout', '-t', type=float, default=0,
               help='timeout (sec)')
 def main(infile, button_name,
          forever,
          disp_all, disp_info,
          disp_hex, disp_bit, disp_raw, disp_normalize, disp_lsb,
+         oled,
          timeout):
 
     sig_data = SigData()
+    if oled:
+        misakifont = MisakiFont(True, 8)
+        misakifont.println('%s start!' % os.path.basename(sys.argv[0]))
 
     if timeout > 0:
         sig_data.set_timeout(timeout)
@@ -691,11 +699,22 @@ def main(infile, button_name,
         
         sig_data.analyze()
 
+        # OLED
+        if oled:
+            misakifont.println('')
+            misakifont.println(' [ ' + sig_data.get_sig_format() + ' ]')
+            hexlist = sig_data.get_hex()
+            o_str = ''
+            for hstr in hexlist:
+                o_str += hstr.replace(' ', '') + ' '
+            misakifont.println(o_str)
+
+        #
         if sig_data.disp_flag['info']:
             sig_data.disp_info()
             sig_data.print()
         else:
-            sig_data.print('# %s' % sig_data.get_sig_format())
+            sig_data.print('# Format: %s' % sig_data.get_sig_format())
 
         if sig_data.disp_flag['bit']:
             if sig_data.disp_flag['info']:
