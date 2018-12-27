@@ -20,11 +20,12 @@ class SigData:
 
     SIG_CH		= {
         'leader':	'-',
+        'leader?':	'=',
         'zero':		'0',
         'one':		'1',
         'trailer':	'/',
         'repeat':	'*',
-        'misc':		'?'	}
+        'unknown':		'?'	}
     SIG_STR_01	= SIG_CH['zero'] + SIG_CH['one']
 
     #
@@ -323,11 +324,12 @@ class SigData:
         self.sig_format = []	# 確定
         self.sig_format2 = []	# 未確定(推定)
         self.sig2n = {'leader':	[],
+                      'leader?':[],
                       'zero':	[],
  	              'one':	[],
                       'trailer':[],
 	              'repeat':	[],
-                      'misc':	[] }
+                      'unknown':	[] }
         for i, [n1, n2] in enumerate(self.n_pattern):
             p = [n1, n2]
             # leader
@@ -342,6 +344,10 @@ class SigData:
             if n1 in [15, 16, 17] and n2 in [7, 8, 9]:
                 self.sig2n['leader'].append(p)
                 self.sig_format.append('NEC')
+                continue
+            if p == [3, 1]:
+                self.sig2n['leader?'].append(p)
+                self.sig_format2.append('Dyson?')
                 continue
             # zero
             if p == [1, 1]:
@@ -377,11 +383,22 @@ class SigData:
                ((n1 == 1 and n2 > 1) or (n1 > 1 and n2 == 1)):
                 self.sig2n['one'].append(p)
                 continue
-            if i == 0:
-                self.sig2n['leader'].append(p)
+            if n1 == self.n_list[0][0] and n2 == self.n_list[0][1]:
+                self.sig2n['leader?'].append(p)
                 continue
             # 判断できない
-            self.sig2n['misc'].append(p)
+            self.sig2n['unknown'].append(p)
+
+        # self.sig2nの['key']と['key?']の整理
+        for key in self.sig2n.keys():
+            if key[-1] == '?':
+                continue
+            if key + '?' in self.sig2n.keys():
+                if len(self.sig2n[key]) == 0:
+                    self.sig2n[key] = self.sig2n[key + '?'][:]
+                for sig in self.sig2n[key]:
+                    if sig in self.sig2n[key + '?']:
+                        self.sig2n[key + '?'].remove(sig)
 
         # 信号フォーマットのリスト<sig_format>から、
         # 文字列<sig_format_str>を生成
@@ -411,7 +428,7 @@ class SigData:
         self.sig_str = ''
         self.sig_line_usec = []
         for i, sig in enumerate(self.sig_list):
-            if sig == 'leader':
+            if sig == 'leader' or sig == 'leader?':
                 # 前の信号の時間から最後のspace時間を引く
                 if len(self.sig_line_usec) > 0:
                     self.sig_line_usec[-1] -= self.raw_data[i-1][1]
@@ -463,9 +480,12 @@ class SigData:
         self.print('## T1_ave[pulse] = %.2f' % self.T1_ave['pulse'])
         self.print('## T1_ave[space] = %.2f' % self.T1_ave['space'])
         self.print('# Signal Format: %s' % self.sig_format_str)
-        for key in ['leader', 'zero', 'one', 'trailer', 'repeat', 'misc']:
-            self.print('## [%s] %-8s: %s' % (self.SIG_CH[key], key,
-                                             str(self.sig2n[key])))
+        for key in ['leader', 'leader?',
+                    'zero', 'one', 'trailer', 'repeat', 'unknown']:
+            if len(self.sig2n[key]):
+                self.print('## [%s] %-8s: %s' % (self.SIG_CH[key],
+                                                 key,
+                                                 str(self.sig2n[key])))
         return
       
     #
