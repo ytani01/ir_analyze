@@ -18,7 +18,8 @@ class CmdOut(threading.Thread):
         self.lineq = queue.Queue()
         self.proc = subprocess.Popen(self.cmd,
                                      universal_newlines=True, bufsize=0, 
-                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE)
         super().__init__()
 
     def run(self):
