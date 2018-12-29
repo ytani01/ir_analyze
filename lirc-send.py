@@ -28,20 +28,25 @@ class IrSend():
         while wait_flag:
             try:
                 ret = proc.wait(__class__.WAIT_SEC)
-                logger.debug('ret=%d', ret)
+                logger.debug('send1> ret=%d', ret)
                 wait_flag = False
                 
             except subprocess.TimeoutExpired:
                 wait_count += 1
-                logger.debug('waiting[%d] %s ..', wait_count, btn)
+                logger.debug('send1> waiting[%d] %s ..', wait_count, btn)
+                if wait_count > 10:
+                    ret = -2
+                    wait_flag = False
+
         return ret
 
     def send(self, dev, btn, interval=0.5):
         ret = -1
         for b in btn:
-            logger.debug('%s %s', dev, b)
+            logger.debug('send> %s %s', dev, b)
             ret = self.send1(dev, b) != 0
             if ret != 0:
+                logger.error('send> send1(%s,%s):ret=%d', dev, b, ret)
                 break
             time.sleep(interval)
         return ret
@@ -50,19 +55,21 @@ class IrSend():
 @click.command(help='irsend python')
 @click.argument('device', type=str, nargs=1)
 @click.argument('button', type=str, nargs=-1, required=True)
-@click.option('--time', '-t', type=float, default=0.5,
+@click.option('--interval', '-i', '-t', type=float, default=0.5,
               help='interval time(sec)')
 @click.option('--count', '-c', type=int, default=1,
               help='count')
-def main(device, button, time, count):
-    logger.debug('%s %s', device, button)
+def main(device, button, interval, count):
+    logger.debug('main> %s %s', device, button)
 
     irs = IrSend()
     ret = -1
     for i in range(count):
-        logger.debug('[%d]', i + 1)
-        ret = irs.send(device, button, time)
+        logger.debug('main> i=%d', i + 1)
+        ret = irs.send(device, button, interval)
         if ret != 0:
+            logger.error('main> send(%s,%s,%.1f):ret=%d',
+                         device, button, interval, ret) 
             break
 
 #####
