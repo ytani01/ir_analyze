@@ -609,7 +609,20 @@ class SigData:
         if n > 0:
             self.print()
         return
-    
+
+def oled_out(sig_data, host='localhost', port=12345):
+    hexlist = sig_data.get_hex()
+    hex_str = ''
+    for h in hexlist:
+        hex_str += h.replace(' ', '') + ' '
+
+    with OledClient(host, port) as oc:
+        oc.part('body')
+        oc.crlf(True)
+        oc.zenkaku(True)
+        oc.send('<< %s >>' % sig_data.get_sig_format())
+        oc.send('  ' + hex_str)
+
 ####
 #
 # main
@@ -689,6 +702,16 @@ def main(infile, button_name,
             sig_data.print('# Button: %s' % button_name)
         sig_data.print()
 
+    if oled:
+        with OledClient('localhost', 12345) as oc:
+            oc.part('body')
+            oc.crlf(True)
+            oc.zenkaku(False)
+            oc.send(os.path.basename(__file__))
+            oc.zenkaku(True)
+            oc.send('Ready')
+        
+
     while True:
         sig_data.load_data(mode, infile, button_name, forever, oscillo)
         if len(sig_data.raw_data) == 0:
@@ -698,18 +721,7 @@ def main(infile, button_name,
 
         # OLED
         if oled:
-            hexlist = sig_data.get_hex()
-            hex_str = ''
-            for h in hexlist:
-                hex_str += h.replace(' ', '') + ' '
-                
-            with OledClient('localhost', 12345) as oc:
-                oc.part('body')
-                oc.crlf(True)
-                oc.zenkaku(True)
-                oc.send('')
-                oc.send('[%s]' % sig_data.get_sig_format())
-                oc.send(hex_str)
+            oled_out(sig_data, 'localhost', 12345)
 
         #
         if sig_data.disp_flag['info']:
