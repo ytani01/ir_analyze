@@ -7,7 +7,7 @@ import click
 import builtins
 
 import CmdOut
-from MisakiFont import MisakiFont
+from OledClient import OledClient
 
 #####
 #
@@ -26,7 +26,7 @@ class SigData:
         'one':		'1',
         'trailer':	'/',
         'repeat':	'*',
-        'unknown':		'?'	}
+        'unknown':	'?'	}
     SIG_STR_01	= SIG_CH['zero'] + SIG_CH['one']
 
     #
@@ -644,9 +644,6 @@ def main(infile, button_name,
          timeout):
 
     sig_data = SigData()
-    if oled:
-        misakifont = MisakiFont(True, 8)
-        misakifont.println('%s start!' % os.path.basename(sys.argv[0]))
 
     if timeout > 0:
         sig_data.set_timeout(timeout)
@@ -701,13 +698,18 @@ def main(infile, button_name,
 
         # OLED
         if oled:
-            misakifont.println('')
-            misakifont.println(' [ ' + sig_data.get_sig_format() + ' ]')
             hexlist = sig_data.get_hex()
-            o_str = ''
-            for hstr in hexlist:
-                o_str += hstr.replace(' ', '') + ' '
-            misakifont.println(o_str)
+            hex_str = ''
+            for h in hexlist:
+                hex_str += h.replace(' ', '') + ' '
+                
+            with OledClient('localhost', 12345) as oc:
+                oc.part('body')
+                oc.crlf(True)
+                oc.zenkaku(True)
+                oc.send('')
+                oc.send('[%s]' % sig_data.get_sig_format())
+                oc.send(hex_str)
 
         #
         if sig_data.disp_flag['info']:
