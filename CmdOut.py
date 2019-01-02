@@ -51,25 +51,52 @@ class CmdOut(threading.Thread):
 #
 @click.command(help='exec <command> and readline from it : ex. \'ls -l\'')
 @click.argument('cmd', metavar='<command>', type=str, nargs=1)
-def main(cmd):
+@click.option('--monitor', '-m', 'monitor', is_flag=True, default=False,
+              help='monitor mode')
+@click.option('--filter', '-f', 'filter', type=str, default='',
+              help='filter string')
+def main(cmd, monitor, filter):
     cmd = cmd.split()
     print('command =', cmd)
 
+    read_timeout = 5
+    sleep_time = 1
+    lines_max = 5
+
+    if monitor:
+        read_timeout=0.6
+        sleep_time = 0
+        
     f = CmdOut(cmd)
     f.start()
 
     l_num = 0
     while True:
-        line = f.readline(timeout = 5)
+        line = f.readline(timeout = read_timeout)
         if not line:
+            if monitor:
+                continue
             break
-        l_num += 1
         line = line.rstrip()
+        
+        if filter != '':
+            found_flag = False
+            for w in filter.split():
+                if w in line:
+                    found_flag = True
+                else:
+                    found_flag = False
+                    break
+            if found_flag:
+                print(line)
+            continue
+            
+        l_num += 1
         data = line.split()
         print('%5d\t%s' % (l_num, str(data)))
-        if l_num >= 5:
+        if not monitor and l_num >= lines_max:
             break
-        time.sleep(1)
+        time.sleep(sleep_time)
 
     f.close()
     f.join()
