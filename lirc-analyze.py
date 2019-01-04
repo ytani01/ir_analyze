@@ -489,20 +489,7 @@ class SigData:
                                                  key,
                                                  str(self.sig2n[key])))
         return
-      
-    #
-    def get_bit(self, lsb_first=False):
-        out_list = []
-        for sigl in self.sig_line:
-            for sig in sigl[0]:
-                if sig[0] in SigData.SIG_STR_01:
-                    if lsb_first:
-                        sig = sig[::-1]
-                    sig = self.split_str(sig[::-1], 4)
-                    sig = sig[::-1]
-                    out_list.append(sig)
-        return(out_list)
-    
+          
     #
     #
     #
@@ -523,21 +510,19 @@ class SigData:
             self.print('(%d usec)' % sl[1])
         return
 
-    #
-    def get_hex(self, lsb_first=False):
-        out_list = []
-        for sigl in self.sig_line:
-            for sig in sigl[0]:
-                if sig[0] in SigData.SIG_STR_01:
-                    if lsb_first:
-                        sig = sig[::-1]
-                    hex_len = int((len(sig) - 1) / 4) + 1
-                    sig = ('0' * hex_len + '%X' % int(sig, 2))[-hex_len:]
-                    sig = self.split_str(sig[::-1], 2)
-                    sig = sig[::-1]
-                    out_list.append(sig)
-        return(out_list)
-    
+    # bit pattern string to hex string
+    def bit2hex(self, b, lsb_first=False):
+        if b[0] not in SigData.SIG_STR_01:
+            return b
+
+        if lsb_first:
+            b = b[::-1]
+        hex_len = int((len(b) - 1) / 4) + 1
+        h = ('0' * hex_len + '%X' % int(b, 2))[-hex_len:]
+        h = self.split_str(h[::-1], 2)
+        h = h[::-1]
+        return h
+        
     #
     # display hex data
     #
@@ -549,13 +534,7 @@ class SigData:
             self.print(prefix, end='')
             for s in sl[0]:
                 if s[0] in SigData.SIG_STR_01:
-                    # 2桁毎に区切る
-                    if lsb_first:
-                        s = s[::-1]
-                    hex_len = int((len(s) - 1) / 4) + 1
-                    s = ('0' * hex_len + '%X' % int(s, 2))[-hex_len:]
-                    s = self.split_str(s[::-1], 2)
-                    s = s[::-1]
+                    s = self.bit2hex(s)
                 self.print('%s ' % s, end='')
             self.print('(%d usec)' % sl[1])
         return
@@ -586,7 +565,7 @@ class SigData:
         return
 
     #
-    #
+    # display normalized data
     #
     def disp_norm(self):
         if len(self.raw_data) == 0:
@@ -610,18 +589,28 @@ class SigData:
             self.print()
         return
 
+#
+# output OLED display
+#
 def oled_out(sig_data, host='localhost', port=12345):
-    hexlist = sig_data.get_hex()
-    hex_str = ''
-    for h in hexlist:
-        hex_str += h.replace(' ', '') + ' '
+    out_str = ''
+
+    for line in [l[0] for l in sig_data.sig_line]:
+        for s in line:
+            if s == '-':
+                continue
+            if s[0] in SigData.SIG_STR_01:
+                s = sig_data.bit2hex(s)
+            out_str += s
+        out_str += '\n'
 
     with OledClient(host, port) as oc:
         oc.part('body')
         oc.crlf(True)
         oc.zenkaku(True)
         oc.send('<< %s >>' % sig_data.get_sig_format())
-        oc.send('  ' + hex_str)
+        #oc.zenkaku(False)
+        oc.send('%s' % out_str.rstrip())
 
 ####
 #
