@@ -597,8 +597,6 @@ def oled_out(sig_data, host='localhost', port=12345):
 
     for line in [l[0] for l in sig_data.sig_line]:
         for s in line:
-            if s == '-':
-                continue
             if s[0] in SigData.SIG_STR_01:
                 s = sig_data.bit2hex(s)
             out_str += s
@@ -696,7 +694,7 @@ def main(infile, button_name,
             oc.part('body')
             oc.crlf(True)
             oc.zenkaku(False)
-            oc.send(os.path.basename(__file__))
+            oc.send('== %s ==' % os.path.basename(__file__))
             oc.zenkaku(True)
             oc.send('Ready')
         
@@ -753,4 +751,11 @@ def main(infile, button_name,
             break
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    finally:
+        with OledClient('localhost', 12345) as oc:
+            oc.part('body')
+            oc.crlf(True)
+            oc.zenkaku(False)
+            oc.send('-- %s:end --' % os.path.basename(__file__))
