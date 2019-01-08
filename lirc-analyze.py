@@ -9,6 +9,20 @@ import builtins
 import CmdOut
 from OledClient import OledClient
 
+from logging import getLogger, StreamHandler, Formatter, DEBUG, INFO, WARN
+logger = getLogger(__name__)
+logger.setLevel(DEBUG)
+handler = StreamHandler()
+handler.setLevel(DEBUG)
+handler_fmt = Formatter('%(asctime)s %(levelname)s %(funcName)s> %(message)s',
+                        datefmt='%H:%M:%S')
+handler.setFormatter(handler_fmt)
+logger.addHandler(handler)
+logger.propagate = False
+
+#####
+oledFlag = False
+
 #####
 #
 # Signal Data Class
@@ -534,6 +548,8 @@ class SigData:
             self.print(prefix, end='')
             for s in sl[0]:
                 if s[0] in SigData.SIG_STR_01:
+                    if lsb_first:
+                        s = s[::-1]
                     s = self.bit2hex(s)
                 self.print('%s ' % s, end='')
             self.print('(%d usec)' % sl[1])
@@ -642,6 +658,9 @@ def main(infile, button_name,
          disp_hex, disp_bit, disp_raw, disp_normalize, disp_lsb,
          oled,
          timeout):
+    global oledFlag
+
+    oledFlag = oled
 
     sig_data = SigData()
 
@@ -754,8 +773,9 @@ if __name__ == '__main__':
     try:
         main()
     finally:
-        with OledClient('localhost', 12345) as oc:
-            oc.part('body')
-            oc.crlf(True)
-            oc.zenkaku(False)
-            oc.send('-- %s:end --' % os.path.basename(__file__))
+        if oledFlag:
+            with OledClient('localhost', 12345) as oc:
+                oc.part('body')
+                oc.crlf(True)
+                oc.zenkaku(False)
+                oc.send('-- %s:end --' % os.path.basename(__file__))
