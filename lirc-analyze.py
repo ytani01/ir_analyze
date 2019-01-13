@@ -126,12 +126,12 @@ class SigData:
         else:
             if infile == '':
                 self.print('Error: infile=\'\'', file=sys.stderr)
-                return None
+                return 0
             try:
                 f = open(infile)
             except:
                 self.print('Error: open(%s)' % infile, file=sys.stderr)
-                return None
+                return 0
 
         data_start = False
         wait_count = 5
@@ -210,7 +210,7 @@ class SigData:
                 for us in data:
                     if not us.isdigit():
                         self.print('! Error: Invalid data:', data)
-                        return None
+                        return 0
 
                     us = int(us)
                     if key == 'pulse':
@@ -245,12 +245,15 @@ class SigData:
             f.join()
 
         if not data_start:
-            return None
+            return 0
 
+        if len(self.raw_data) == 0:
+            return 0
+        
         if len(self.raw_data[-1]) == 1:
             self.raw_data[-1].append(SigData.SIG_LONG)
 
-        return
+        return len(self.raw_data)
 
     # 度数分布作成
     def fq_dist(self, data, step=0.2):
@@ -719,9 +722,8 @@ def main(infile, button_name,
         
 
     while True:
-        sig_data.load_data(mode, infile, button_name, forever, oscillo)
-        if len(sig_data.raw_data) == 0:
-            break
+        if sig_data.load_data(mode, infile, button_name, forever, oscillo) == 0:
+            continue
         
         sig_data.analyze()
 
