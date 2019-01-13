@@ -232,7 +232,7 @@ class SigData:
                     for i in range(sig_len):
                         ch = '_'
                         if key == 'pulse':
-                            ch = '*'
+                            ch = '-'
                         self.print(ch, end='', file=sys.stderr)
                 except BrokenPipeError:
                     break
