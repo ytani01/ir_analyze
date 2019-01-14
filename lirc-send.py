@@ -33,10 +33,12 @@ class IrSend():
                 
             except subprocess.TimeoutExpired:
                 wait_count += 1
-                logger.debug('send1> waiting[%d] %s ..', wait_count, btn)
-                if wait_count > 10:
+                if wait_count > 5:
                     ret = -2
                     wait_flag = False
+                    break
+                logger.debug('send1> waiting[%d] %s %s ..',
+                             wait_count, dev, btn)
 
         return ret
 
@@ -44,7 +46,7 @@ class IrSend():
         ret = -1
         for b in btn:
             logger.debug('send> %s %s', dev, b)
-            ret = self.send1(dev, b) != 0
+            ret = self.send1(dev, b)
             if ret != 0:
                 logger.error('send> send1(%s,%s):ret=%d', dev, b, ret)
                 break
@@ -69,7 +71,8 @@ def main(device, button, interval, count):
         ret = irs.send(device, button, interval)
         if ret != 0:
             logger.error('main> send(%s,%s,%.1f):ret=%d',
-                         device, button, interval, ret) 
+                         device, button, interval, ret)
+            time.sleep(2)
             break
 
 #####
