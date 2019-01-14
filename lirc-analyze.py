@@ -165,8 +165,8 @@ class SigData:
                         self.print('%d..' % wait_count, end='',
                                    file=sys.stderr)
                     continue
-                else:
-                    self.print('END', file=sys.stderr)
+
+                self.print('END', file=sys.stderr)
                 break
 
             data = line.split()
@@ -722,8 +722,13 @@ def main(infile, button_name,
         
 
     while True:
-        if sig_data.load_data(mode, infile, button_name, forever, oscillo) == 0:
-            continue
+        if sig_data.load_data(mode, infile, button_name,
+                              forever, oscillo) == 0:
+            # no data
+            if forever:
+                continue
+            else:
+                break
         
         sig_data.analyze()
 
