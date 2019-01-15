@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+#
+# (c) 2018 Yoichi Tanibayashi
+#
 
 import subprocess
 import time
@@ -33,7 +36,9 @@ class IrSend():
                 
             except subprocess.TimeoutExpired:
                 wait_count += 1
-                if wait_count > 5:
+                if wait_count > 2:
+                    proc.terminate()
+                    time.sleep(0.3)
                     ret = -2
                     wait_flag = False
                     break
@@ -44,12 +49,21 @@ class IrSend():
 
     def send(self, dev, btn, interval=0.5):
         ret = -1
+        retry = 7
         for b in btn:
-            logger.debug('send> %s %s', dev, b)
-            ret = self.send1(dev, b)
-            if ret < 0:
-                logger.error('send> send1(%s,%s):ret=%d', dev, b, ret)
-                break
+            count = 0
+            while True:
+                count += 1
+                ret = self.send1(dev, b)
+                logger.error('send> count=%d, send1(%s,%s):ret=%d',
+                             count, dev, b, ret)
+                if ret >= 0:
+                    break	# success
+                if count >= retry:
+                    logger.error('send1> send1() fail')
+                    break	# fail
+                time.sleep(1)
+                
             time.sleep(interval)
         return ret
 
@@ -72,7 +86,6 @@ def main(device, button, interval, count):
         if ret < 0:
             logger.error('main> send(%s,%s,%.1f):ret=%d',
                          device, button, interval, ret)
-            time.sleep(2)
             break
 
 #####
