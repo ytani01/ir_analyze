@@ -47,7 +47,7 @@ class IrSend():
         for b in btn:
             logger.debug('send> %s %s', dev, b)
             ret = self.send1(dev, b)
-            if ret != 0:
+            if ret < 0:
                 logger.error('send> send1(%s,%s):ret=%d', dev, b, ret)
                 break
             time.sleep(interval)
@@ -69,7 +69,7 @@ def main(device, button, interval, count):
     for i in range(count):
         logger.debug('main> i=%d', i + 1)
         ret = irs.send(device, button, interval)
-        if ret != 0:
+        if ret < 0:
             logger.error('main> send(%s,%s,%.1f):ret=%d',
                          device, button, interval, ret)
             time.sleep(2)
