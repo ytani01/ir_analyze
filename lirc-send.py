@@ -92,7 +92,7 @@ class IrSend():
                 if count >= retry:
                     logger.error('send1> send1() fail')
                     break	# fail
-                time.sleep(1)
+                time.sleep(interval)
 
             time.sleep(interval)
         return ret
