@@ -51,8 +51,13 @@ class IrSend():
                         wait_flag = False
                         ret = 0
                     if 'repeating' in data:
+                        logger.warning('send1> %s', data)
                         wait_flag = False
                         ret = 0
+                    if 'unknown' in data:
+                        logger.error('send1> %s', data)
+                        wait_flag = False
+                        ret = -2
                     if 'END' in data:
                         recv_flag = False
                         
@@ -61,7 +66,7 @@ class IrSend():
                 wait_count += 1
                 if wait_count > wait_max:
                     logger.error('send1> timeout')
-                    ret = -2
+                    ret = -1
                     wait_flag = False
                     break
                 logger.debug('send1> waiting[%d/%d] %s %s ..',
@@ -82,6 +87,8 @@ class IrSend():
                              count, dev, b, ret)
                 if ret >= 0:
                     break	# success
+                if ret <= -2:
+                    break	# critical
                 if count >= retry:
                     logger.error('send1> send1() fail')
                     break	# fail
