@@ -758,11 +758,11 @@ def main(infile, button_name,
             if sig_data.disp_flag['info']:
                 sig_data.print('# Hex data')
 
-            sig_data.disp_hex('', '## bit:MSB ')
+            sig_data.disp_hex('', '## hex:MSB ')
             sig_data.print()
 
             if sig_data.disp_flag['lsb']:
-                sig_data.disp_hex('', '## bit:LSB ', True)
+                sig_data.disp_hex('', '## hex:LSB ', True)
                 sig_data.print()
 
         if sig_data.disp_flag['raw']:
