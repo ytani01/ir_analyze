@@ -515,7 +515,7 @@ class SigData:
             self.print(prefix, end='')
             for s in sl[0]:
                 if s[0] in SigData.SIG_STR_01:
-                    self.print('(%d bits) ' % len(s), end='')
+                    self.print('[%d] ' % len(s), end='')
                     # 4桁毎に区切る
                     if lsb_first:
                         s = s[::-1]
@@ -549,7 +549,7 @@ class SigData:
             self.print(prefix, end='')
             for s in sl[0]:
                 if s[0] in SigData.SIG_STR_01:
-                    self.print('(%d bits) ' % len(s), end='')
+                    self.print('[%d] ' % len(s), end='')
                     if lsb_first:
                         s = s[::-1]
                     s = self.bit2hex(s)
