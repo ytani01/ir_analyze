@@ -91,10 +91,6 @@ class SigData:
     #
     def print(self, *args, sep=' ', end='\n', file=None, force=False,
               disp=''):
-        '''
-        if disp == '' or force or self.disp_flag[disp] or file == sys.stderr:
-            builtins.print(*args, sep=sep, end=end, file=file)
-        '''
         builtins.print(*args, sep=sep, end=end, file=file)
         if file == sys.stderr or file == sys.stdout:
             file.flush()
@@ -479,7 +475,6 @@ class SigData:
                     continue
                 l1 = l1.replace(SigData.SIG_CH[key],
                                 ' ' + SigData.SIG_CH[key] + ' ')
-                #self.print('"%s"' % l1, force=True)
             self.sig_line.append([l1.split(), self.sig_line_usec[i]])
 
         ### XXX
@@ -495,12 +490,14 @@ class SigData:
         if not self.sig_line:
             return
 
-        self.print('# T = %.2f, Td = %.2f' % (self.T, self.Td))
+        self.print('# T = %.2f' % self.T)
+        self.print('## Td = %.2f' % self.Td)
         self.print('## T1_ave[pulse] = %.2f' % self.T1_ave['pulse'])
         self.print('## T1_ave[space] = %.2f' % self.T1_ave['space'])
         self.print('# Signal Format: %s' % self.sig_format_str)
         for key in ['leader', 'leader?',
-                    'zero', 'one', 'trailer', 'repeat', 'unknown']:
+                    'zero', 'one',
+                    'trailer', 'repeat', 'unknown']:
             if len(self.sig2n[key]):
                 self.print('## [%s] %-8s: %s' % (self.SIG_CH[key],
                                                  key,
@@ -518,6 +515,7 @@ class SigData:
             self.print(prefix, end='')
             for s in sl[0]:
                 if s[0] in SigData.SIG_STR_01:
+                    self.print('(%d bits) ' % len(s), end='')
                     # 4桁毎に区切る
                     if lsb_first:
                         s = s[::-1]
@@ -551,6 +549,7 @@ class SigData:
             self.print(prefix, end='')
             for s in sl[0]:
                 if s[0] in SigData.SIG_STR_01:
+                    self.print('(%d bits) ' % len(s), end='')
                     if lsb_first:
                         s = s[::-1]
                     s = self.bit2hex(s)
