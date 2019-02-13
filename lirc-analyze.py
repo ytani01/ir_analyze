@@ -635,24 +635,27 @@ def oled_out(sig_data, host='localhost', port=12345):
 @click.command(help='LIRC analyzer')
 @click.argument('infile', default='', type=click.Path())
 @click.argument('button_name', default='')
-@click.option('--forever', '-f', is_flag=True, default=False, help='loop forever')
-@click.option('--disp_all', '--all', '-a', is_flag=True, default=False,
-              help='display all')
-@click.option('--disp_info', '--info', '-i', is_flag=True, default=False,
+@click.option('--forever', '-f', 'forever', is_flag=True, default=False,
+              help='loop forever')
+@click.option('--disp_all', '--all', '-a', 'disp_all',
+              is_flag=True, default=False, help='display all')
+@click.option('--disp_info', '--info', '-i', 'disp_info',
+              is_flag=True, default=False,
               help='display information (default)')
-@click.option('--disp_hex', '--hex', '-h', is_flag=True, default=False,
-              help='display hex data (default)')
-@click.option('--disp_bit', '--bit', '-b', is_flag=True, default=False,
+@click.option('--disp_hex', '--hex', '-h', 'disp_hex',
+              is_flag=True, default=False, help='display hex data (default)')
+@click.option('--disp_bit', '--bit', '-b', 'disp_bit',
+              is_flag=True, default=False,
               help='display bit pattern (default)')
-@click.option('--disp_raw', '--raw', '-r', is_flag=True, default=False,
-              help='display raw data')
-@click.option('--disp_normalize', '--norm', '-n', is_flag=True, default=False,
-              help='display normalized data')
-@click.option('--disp_lsb', '--lsb', '-l', is_flag=True, default=False,
-              help='display LSB first')
-@click.option('--oled', '-o', is_flag=True, default=False,
+@click.option('--disp_raw', '--raw', '-r', 'disp_raw',
+              is_flag=True, default=False, help='display raw data')
+@click.option('--disp_normalize', '--norm', '-n', 'disp_normalize',
+              is_flag=True, default=False, help='display normalized data')
+@click.option('--disp_lsb', '--lsb', '-l', 'disp_lsb',
+              is_flag=True, default=False, help='display LSB first')
+@click.option('--oled', '-o', 'oled', is_flag=True, default=False,
               help='OLED output')
-@click.option('--timeout', '-t', type=float, default=0,
+@click.option('--timeout', '-t', 'timeout', type=float, default=0,
               help='timeout (sec)')
 def main(infile, button_name,
          forever,
