@@ -515,7 +515,7 @@ class SigData:
             self.print(prefix, end='')
             for s in sl[0]:
                 if s[0] in SigData.SIG_STR_01:
-                    self.print('[%d] ' % len(s), end='')
+                    self.print('[%d bits] ' % len(s), end='')
                     # 4桁毎に区切る
                     if lsb_first:
                         s = s[::-1]
@@ -549,7 +549,7 @@ class SigData:
             self.print(prefix, end='')
             for s in sl[0]:
                 if s[0] in SigData.SIG_STR_01:
-                    self.print('[%d] ' % len(s), end='')
+                    self.print('[%d bits] ' % len(s), end='')
                     if lsb_first:
                         s = s[::-1]
                     s = self.bit2hex(s)
@@ -560,11 +560,11 @@ class SigData:
     #
     # display raw data
     #
-    def disp_raw(self):
+    def disp_raw(self, button_num):
         if len(self.raw_data) == 0:
             return
         self.print('# raw data')
-        self.print('\tname\tbutton')
+        self.print('\tname\tbutton%dr' % button_num)
         sig_str = self.sig_str.replace(' ', '')
         n = 0
         for i, ch in enumerate(sig_str):
@@ -585,11 +585,11 @@ class SigData:
     #
     # display normalized data
     #
-    def disp_norm(self):
+    def disp_norm(self, button_num):
         if len(self.raw_data) == 0:
             return
         self.print('# normalized data')
-        self.print('\tname\tbutton')
+        self.print('\tname\tbutton%d' % button_num)
         sig_str = self.sig_str.replace(' ', '')
         n = 0
         for i, ch in enumerate(sig_str):
@@ -722,7 +722,7 @@ def main(infile, button_name,
             oc.zenkaku(True)
             oc.send('Ready')
         
-
+    button_num = 1
     while True:
         if sig_data.load_data(mode, infile, button_name,
                               forever, oscillo) == 0:
@@ -768,12 +768,14 @@ def main(infile, button_name,
                 sig_data.print()
 
         if sig_data.disp_flag['raw']:
-            sig_data.disp_raw()
+            sig_data.disp_raw(button_num)
             sig_data.print()
 
         if sig_data.disp_flag['norm']:
-            sig_data.disp_norm()
+            sig_data.disp_norm(button_num)
             sig_data.print()
+
+        button_num += 1
         
         if mode != 'exec.mode2':
             break
