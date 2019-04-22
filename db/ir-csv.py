@@ -3,6 +3,7 @@
 # (c) 2019 Yoichi Tanibayashi
 #
 import csv
+import time
 
 import click
 
@@ -56,7 +57,7 @@ class ConvertCode:
         
 
 ##### sample application
-class Sample:
+class App:
     CONV_DEV = [
         ['ソニー',           'sony'],
         ['東芝',             'toshiba'],
@@ -74,25 +75,36 @@ class Sample:
         ['コロナ',           'corona'],
         ['タキズミ',         'takizumi'],
         ['コイズミ',         'koizumi'],
-        ['デジタルテレビ', 'tv'],
-        ['エアコン',       'aircon'],
-        ['照明器具',       'light'],
-        ['１','1'],
-        ['２','2'],
-        ['３','3'],
-        ['４','4'],
-        ['５','5'],
-        ['０','0']
+        
+        ['デジタルテレビ',   'tv'],
+        ['エアコン',         'aircon'],
+        ['照明器具',         'light'],
+        
+        ['０',               '0'],
+        ['１',               '1'],
+        ['２',               '2'],
+        ['３',               '3'],
+        ['４',               '4'],
+        ['５',               '5'],
+        ['６',               '6'],
+        ['７',               '7'],
+        ['８',               '8'],
+        ['９',               '9']
     ]
     CONV_BTN = [
+        ['テレビ',     'tv'],
+        ['ラジオ',     'radio'],
+        ['データ',     'data'],
         ['電源',       'power'],
         ['運転 暖房 ', 'on_hot_'],
         ['運転 冷房 ', 'on_cool_'],
-        ['運転 除湿 ', 'on_cool_'],
+        ['運転 除湿',  'on_dry'],
         ['点灯',       'on'],
         ['消灯',       'off'],
+        ['オフ',       'off'],
         ['一時停止',   'pause'],
         ['停止',       'off'],
+        ['ホーム',     'home'],
         ['メニュー',   'menu'],
         ['チャンネル', 'ch'],
         ['音量',       'vol'],
@@ -109,33 +121,48 @@ class Sample:
         ['←',         'left'],
         ['→',         'right'],
         ['音量',       'vol'],
+        ['タイマー',   'timer'],
         ['＋',         '+'],
         ['－',         '-'],
         ['+',          '_plus'],
         ['-',          '_minus'],
-        ['０','0']
+        ['/',          '_'],
+
+        ['℃',         ''],
+
+        ['０',         '0'],
+        ['１',         '1'],
+        ['２',         '2'],
+        ['３',         '3'],
+        ['４',         '4'],
+        ['５',         '5'],
+        ['６',         '6'],
+        ['７',         '7'],
+        ['８',         '8'],
+        ['９',         '9']
     ]
         
-    def __init__(self, infile, debug=False):
+    def __init__(self, infile, slow=False, debug=False):
         self.logger = init_logger(__class__.__name__, debug)
         self.logger.debug('infile = %s', infile)
 
         self.infile = infile
-        self.debug = debug
+        self.slow   = slow
+        self.debug  = debug
 
     def main(self):
         data1 = {}
         with open(self.infile, 'r') as c:
             reader = csv.reader(c, delimiter=',', quotechar='"')
             for line in reader:
+                self.logger.debug('')
                 (manufacturer, device, button, code) = line
-                #self.logger.debug('manufacturer : %s', manufacturer)
-                #self.logger.debug('device       : %s', device)
-                #self.logger.debug('button       : %s', button)
-                #self.logger.debug('code         : %s', code)
+                self.logger.debug('%s', line)
+                #self.logger.debug('%s:%s:%s', manufacturer, device, button)
+                #self.logger.debug('%s', code)
 
                 device2 = self.conv_dev('%s_%s' % (manufacturer, device))
-                button = self.conv_btn(button)
+                button2 = self.conv_btn(button)
 
                 code2 = []
                 for i in range(int(len(code)/4)):
@@ -145,19 +172,40 @@ class Sample:
                     hex_str2 = hex_str[-2:] + hex_str[:2]
                     code2.append(int(hex_str2, 16) * 26)
 
-                #print('%s:%s:%s' % (device2, button, code2))
-
                 if device2 not in data1.keys():
-                    data1[device2] = {}
+                    data1[device2] = {
+                        'manufacturer': manufacturer,
+                        'device'      : device,
+                        'button'      : {} }
+                    self.logger.debug('data1[%s]=%s',
+                                      device2, str(data1[device2]))
 
-                data1[device2][button] = code2
+                data1[device2]['button'][button2] = {
+                    'line'        : line,
+                    'button'      : button,
+                    'code'        : code,
+                    'code2'       : code2 }
+                self.logger.debug('data1[%s][\'button\']=%s',
+                                  device2, str(data1[device2]['button']))
+
+                self.sleep()
 
         for dev in sorted(data1.keys()):
             print('device %s' % dev)
-            for btn in sorted(data1[dev].keys()):
+            print('#\t%s:%s' % (
+                data1[dev]['manufacturer'],
+                data1[dev]['device']) )
+            print('')
+            
+            for btn in sorted(data1[dev]['button']):
                 print('\tname\t%s' % btn)
+                print('#\t%s:%s' % (
+                    data1[dev]['button'][btn]['button'],
+                    data1[dev]['button'][btn]['code']) )
+                print('')
+                
                 count = 0
-                for d in data1[dev][btn]:
+                for d in data1[dev]['button'][btn]['code2']:
                     print('%5d ' % d, end='')
                     count += 1
                     if count == 2 or count % 8 == 2:
@@ -167,29 +215,39 @@ class Sample:
                 print()
             print()
 
-    def conv_dev(self, str):
-        for [src, dst] in self.CONV_DEV:
-            str = str.replace(src, dst)
-        self.logger.debug('str = %s', str)
-        return str
+    def sleep(self):
+        if self.debug and self.slow > 0:
+            time.sleep(self.slow)
 
-    def conv_btn(self, str):
+    def conv_dev(self, str_orig):
+        str_new = str_orig
+        for [src, dst] in self.CONV_DEV:
+            str_new = str_new.replace(src, dst)
+        self.logger.debug('\'%s\' -> \'%s\'', str_orig, str_new)
+        return str_new
+
+    def conv_btn(self, str_orig):
+        str_new = str_orig
         for [src, dst] in self.CONV_BTN:
-            str = str.replace(src, dst)
-        return str
+            str_new = str_new.replace(src, dst)
+        self.logger.debug('\'%s\' -> \'%s\'', str_orig, str_new)
+        return str_new
                     
 #####
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('infile', metavar='<csv_file>', type=click.Path(exists=True))
+@click.option('--slow', '-s', 'slow', type=int, default=0,
+              help='slow mode')
 @click.option('--debug', '-d', 'debug', is_flag=True, default=False,
               help='debug flag')
-def main(infile, debug):
+def main(infile, slow, debug):
     logger = init_logger('', debug)
     logger.debug('infile = %s', infile)
+    logger.debug('slow   = %d', slow)
     logger.debug('debug  = %s', debug)
 
-    Sample(infile, debug=debug).main()
+    App(infile, slow, debug=debug).main()
 
 if __name__ == '__main__':
     main()
