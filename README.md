@@ -37,6 +37,8 @@ Options:
 $ sudo apt -y install lirc
 ```
 
+※(buster) 下記設定ファイルを作成した後にインストール(？)
+
 ### 1.2 設定ファイル
 
 #### 1.2.1 /etc/lirc/lirc_options.confの編集
@@ -66,6 +68,12 @@ LIRCMD_CONF=""
 
 #### 1.2.3 /boot/config.txt の編集
 
+```
+dtoverlay=gpio-ir-tx,gpio_pin=22
+dtoverlay=gpio-ir,gpio_pin=27
+```
+
+deprecated ..
 ```
 dtoverlay=lirc-rpi
 dtparam=gpio_out_pin=13
