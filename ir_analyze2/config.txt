@@ -1,0 +1,2 @@
+dtoverlay=gpio-ir-tx,gpio_pin=22
+dtoverlay=gpio-ir,gpio_pin=27

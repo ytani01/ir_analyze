@@ -2,6 +2,9 @@
 #
 # (c) 2018 Yoichi Tanibayashi
 #
+__auther__ = 'Yoichi Tanibayashi'
+__date__   = '2019'
+
 import os, sys
 import click
 import builtins
@@ -9,9 +12,10 @@ import builtins
 import CmdOut
 from OledClient import OledClient
 
-import MyLogger
-
 #####
+from MyLogger import MyLogger
+my_logger = MyLogger()
+
 oledFlag = False
 
 #####
@@ -48,7 +52,7 @@ class SigData:
             'lsb':	False	}
 
         self.debug  = debug
-        self.logger = MyLogger.get_logger(__class__.__name__, self.debug)
+        self.logger = my_logger.get_logger(__class__.__name__, self.debug)
 
         self.raw_data = None
         self.timeout = 0
@@ -71,6 +75,8 @@ class SigData:
         self.sig_line_usec = None
         self.sig_line1 = None
         self.sig_line = None
+
+        self.prev_key = ''
 
     #
     def set_timeout(self, sec):
@@ -108,13 +114,13 @@ class SigData:
     #
     def load_data(self, mode, infile='', btn='', forever=False, oscillo=False):
         self.logger.debug('')
-        
+
         self.sig_line = None
         self.raw_data = []
 
         if mode == 'exec.mode2':
-            #f = CmdOut.CmdOut(['mode2'])
-            f = CmdOut.CmdOut(['ir-ctl', '-r', '-d', '/dev/lirc1', '-t', '99999'])
+            f = CmdOut.CmdOut(['mode2', '-d', '/dev/lirc1'])
+            #f = CmdOut.CmdOut(['ir-ctl', '-r', '-d', '/dev/lirc1', '-t', '99999'])
             f.start()
         else:
             if infile == '':
@@ -149,8 +155,6 @@ class SigData:
                 if data_start:
                     # データ開始後のタイムアウトは終了
                     break
-                else:
-                    continue
 
                 if forever:
                     continue
@@ -196,14 +200,21 @@ class SigData:
                 #     :
                 [key, us] = data
                 us = int(us)
+
                 if key == 'timeout':
                     # data end
+                    break
+                if key == 'pulse' and self.prev_key == 'pulse':
+                    # data end (mode2)
                     break
                 
                 if key == 'pulse':
                     self.raw_data.append([us])
                 else:
-                    self.raw_data[-1].append(us)
+                    if len(self.raw_data) > 0:
+                        self.raw_data[-1].append(us)
+
+                self.prev_key = key
             else:
                 # lircd.conf形式
                 #    name btn
@@ -603,7 +614,6 @@ class SigData:
         self.print('# normalized data')
         self.print('\tname\tbutton%d' % button_num)
         sig_str = self.sig_str.replace(' ', '')
-        print(sig_str)
         n = 0
         for i, ch in enumerate(sig_str):
             n += 1
@@ -702,7 +712,7 @@ def main(infile, button_name,
          debug):
     global oledFlag
 
-    logger = MyLogger.get_logger(__name__, debug=debug)
+    logger = my_logger.get_logger(__name__, debug=debug)
     logger.info('debug=%s', debug)
 
     oledFlag = oled
