@@ -5,27 +5,27 @@
 
 import socket
 import time
-import click
 
-from logging import getLogger, StreamHandler, Formatter, DEBUG, INFO, WARN
-logger = getLogger(__name__)
-handler = StreamHandler()
-handler.setLevel(DEBUG)
-logger.setLevel(INFO)
-handler_fmt = Formatter('[%(levelname)s] %(message)s')
-handler.setFormatter(handler_fmt)
-logger.addHandler(handler)
-logger.propagate = False
+##### logger
+from MyLogger import MyLogger
+my_logger = MyLogger(__file__)
 
 #####
 class IrSend():
     '''
-    Reference	http://www.lirc.org/html/lircd.html
+    LIRC Reference	http://www.lirc.org/html/lircd.html
     '''
     
     SOCK_PATH = '/var/run/lirc/lircd'
     
+    def __init__(self, debug=False):
+        self.debug = debug
+        self.logger = my_logger.get_logger(__class__.__name__, self.debug)
+        self.logger.debug('debug = %s', self.debug)
+
     def send1(self, dev, btn):
+        self.logger.debug('dev=%s, btn=%s', dev, btn)
+        
         ret = -1
 
         lircd = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -34,7 +34,7 @@ class IrSend():
                 
         data = 'SEND_ONCE %s %s\r\n' % (dev, btn)
         lircd.send(data.encode('utf-8'))
-        logger.debug('send1> send:%s.', data.rstrip())
+        self.logger.debug('send:%s.', data.rstrip())
 
         wait_flag, wait_count, wait_max= True, 0, 1
         while wait_flag:
@@ -42,7 +42,7 @@ class IrSend():
                 recv_flag = True
                 while recv_flag:
                     data = lircd.recv(1024).decode('utf-8').rstrip()
-                    logger.debug('send1> data=%s', data)
+                    self.logger.debug('data=%s', data)
                     wait_count = 0
                     if 'ERROR' in data:
                         wait_flag = False
@@ -51,11 +51,11 @@ class IrSend():
                         wait_flag = False
                         ret = 0
                     if 'repeating' in data:
-                        logger.warning('send1> %s', data)
+                        self.logger.warning('%s', data)
                         wait_flag = False
                         ret = 0
                     if 'unknown' in data:
-                        logger.error('send1> %s', data)
+                        self.logger.error('%s', data)
                         wait_flag = False
                         ret = -2
                     if 'END' in data:
@@ -65,17 +65,20 @@ class IrSend():
             except socket.timeout:
                 wait_count += 1
                 if wait_count > wait_max:
-                    logger.error('send1> timeout')
+                    self.logger.error('timeout')
                     ret = -1
                     wait_flag = False
                     break
-                logger.debug('send1> waiting[%d/%d] %s %s ..',
-                             wait_count, wait_max, dev, btn)
+                self.logger.debug('waiting[%d/%d] %s %s ..',
+                                  wait_count, wait_max, dev, btn)
                 time.sleep(0.3)
 
         return ret
 
     def send(self, dev, btn, interval=0.5):
+        self.logger.debug('dev=%s, btn=%s, interval=%.1f',
+                          dev, btn, interval)
+        
         ret = -1
         retry = 5
         for b in btn:
@@ -83,14 +86,14 @@ class IrSend():
             while True:
                 count += 1
                 ret = self.send1(dev, b)
-                logger.debug('send> count=%d, send1(%s,%s):ret=%d',
-                             count, dev, b, ret)
+                self.logger.debug('count=%d, send1(%s,%s):ret=%d',
+                                  count, dev, b, ret)
                 if ret >= 0:
                     break	# success
                 if ret <= -2:
                     break	# critical
                 if count >= retry:
-                    logger.error('send1> send1() fail')
+                    self.logger.error('send1() fail')
                     break	# fail
                 time.sleep(interval)
 
@@ -98,6 +101,8 @@ class IrSend():
         return ret
 
 #####
+import click
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(help='irsend python')
 @click.argument('device', type=str, nargs=1)
 @click.argument('button', type=str, nargs=-1, required=True)
@@ -108,18 +113,17 @@ class IrSend():
 @click.option('--debug', '-d', is_flag=True, default=False,
               help='debug flag')
 def main(device, button, interval, count, debug):
-    if debug:
-        logger.setLevel(DEBUG)
-        
-    logger.debug('main> %s %s', device, button)
+    logger = my_logger.get_logger(__name__, debug)
 
-    irs = IrSend()
+    logger.debug('%s %s', device, button)
+
+    irs = IrSend(debug=debug)
     ret = -1
     for i in range(count):
-        logger.debug('main> i=%d', i + 1)
+        logger.debug('i=%d', i + 1)
         ret = irs.send(device, button, interval)
         if ret < 0:
-            logger.error('main> send(%s,%s,%.1f):ret=%d',
+            logger.error('send(%s,%s,%.1f):ret=%d',
                          device, button, interval, ret)
             break
 
