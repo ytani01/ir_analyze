@@ -106,3 +106,8 @@ $ sudo service lircd start
 ```bash
 $ irsend SEND_ONCE device button
 ```
+
+
+## A. Reference
+
+1. [IR Codes TV LG 55UH8509](https://github.com/arendst/Sonoff-Tasmota/wiki/IR-Codes-for-TV-LG-55UH8509)
