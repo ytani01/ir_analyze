@@ -25,19 +25,16 @@ class App:
     VAL_ON = 0
     VAL_OFF = 1
 
-    def __init__(self, pin, vcc, debug=False):
+    def __init__(self, pin, debug=False):
         self.debug = debug
         self.logger = my_logger.get_logger(__class__.__name__, debug)
-        self.logger.debug('pin: %d, vcc: %d', pin, vcc)
+        self.logger.debug('pin: %d', pin)
 
         self.pin = pin
-        self.vcc = vcc
         self.tick = 0
 
         self.pi = pigpio.pi()
         self.pi.set_mode(self.pin, pigpio.INPUT)
-        self.pi.set_mode(self.vcc, pigpio.OUTPUT)
-        self.pi.write(self.vcc, 1)
         
         self.cb = self.pi.callback(self.pin, pigpio.EITHER_EDGE, self._cb)
 
@@ -69,6 +66,7 @@ class App:
 
     def end(self):
         self.logger.debug('')
+        self.cb.cancel()
         self.pi.stop()
         self.logger.debug('done')
         
@@ -77,14 +75,13 @@ import click
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('pin', type=int, default=27)
-@click.argument('vcc', type=int, default=26)
 @click.option('--debug', '-d', 'debug', is_flag=True, default=False,
               help='debug flag')
-def main(pin, vcc, debug):
+def main(pin, debug):
     logger = my_logger.get_logger(__name__, debug)
-    logger.debug('pin: %d, vcc: %d', pin, vcc)
+    logger.debug('pin: %d', pin)
 
-    obj = App(pin, vcc, debug)
+    obj = App(pin, debug)
     try:
         obj.main()
     finally:
