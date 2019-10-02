@@ -7,7 +7,10 @@ import click
 import builtins
 
 import CmdOut
-from OledClient import OledClient
+try:
+    from OledClient import OledClient
+except ImportError:
+    USE_OLED = False
 
 from logging import getLogger, StreamHandler, Formatter, DEBUG, INFO, WARN
 logger = getLogger(__name__)
@@ -116,7 +119,10 @@ class SigData:
         self.sig_line = None
         self.raw_data = []
 
-        if mode == 'exec.mode2':
+        if mode == 'exec.IrRecv.py':
+            f = CmdOut.CmdOut(['IrRecv.py'])
+            f.start()
+        elif mode == 'exec.mode2':
             f = CmdOut.CmdOut(['mode2'])
             f.start()
         else:
@@ -132,7 +138,7 @@ class SigData:
         data_start = False
         wait_count = 5
         while True:
-            if mode == 'exec.mode2':
+            if mode.startswith('exec.'):
                 tm_out = SigData.DEF_TIMEOUT
                 if self.timeout > 0:
                     tm_out = self.timeout
@@ -143,10 +149,10 @@ class SigData:
                 line = f.readline()
 
             if not line:	# timeout
-                if mode != 'exec.mode2':
+                if not mode.startswith('exec.'):
                     break
 
-                # mode == 'exec.mode2'
+                # mode == 'exec.*'
                 if data_start:
                     # データ開始後のタイムアウトは終了
                     break
@@ -237,7 +243,7 @@ class SigData:
             self.print(file=sys.stderr)
 
         f.close()
-        if mode == 'exec.mode2':
+        if mode.startswith('exec.'):
             f.join()
 
         if not data_start:
@@ -611,6 +617,9 @@ class SigData:
 # output OLED display
 #
 def oled_out(sig_data, host='localhost', port=12345):
+    if oledFlag is False:
+        return
+    
     out_str = ''
 
     for line in [l[0] for l in sig_data.sig_line]:
@@ -653,6 +662,8 @@ def oled_out(sig_data, host='localhost', port=12345):
               is_flag=True, default=False, help='display normalized data')
 @click.option('--disp_lsb', '--lsb', '-l', 'disp_lsb',
               is_flag=True, default=False, help='display LSB first')
+@click.option('--exec_mode2', '--mode2', '-m', 'mode2',
+              is_flag=True, default=False, help='exec mode2')
 @click.option('--oled', '-o', 'oled', is_flag=True, default=False,
               help='OLED output')
 @click.option('--timeout', '-t', 'timeout', type=float, default=0,
@@ -661,11 +672,13 @@ def main(infile, button_name,
          forever,
          disp_all, disp_info,
          disp_hex, disp_bit, disp_raw, disp_normalize, disp_lsb,
+         mode2,
          oled,
          timeout):
     global oledFlag
 
-    oledFlag = oled
+    if USE_OLED:
+        oledFlag = oled
 
     sig_data = SigData()
 
@@ -697,7 +710,10 @@ def main(infile, button_name,
         sig_data.disp_flag['bit'] = True
     
     if infile == '':
-        mode = 'exec.mode2'
+        if mode2:
+            mode = 'exec.mode2'
+        else:
+            mode = 'exec.IrRecv.py'
     elif button_name == '':
         mode = 'mode2.out'
     else:
@@ -777,7 +793,7 @@ def main(infile, button_name,
 
         button_num += 1
         
-        if mode != 'exec.mode2':
+        if not mode.startswith('exec.'):
             break
 
 if __name__ == '__main__':

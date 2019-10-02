@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S python3 -u
 #
 # (c) 2019 Yoichi Tanibayashi
 #
@@ -20,10 +20,16 @@ DEF_PIN = 27
 
 #####
 class IrRecv:
-    GLITCH_USEC = 100
-    INTERVAL_MAX = 99999
-    VAL_ON = 0
-    VAL_OFF = 1
+    GLITCH_USEC     = 100   # usec
+
+    INTERVAL_MAX    = 999999 # usec
+
+    WATCHDOG_MSEC   = INTERVAL_MAX / 1000    # msec
+    WATCHDOG_CANCEL = 0
+
+    VAL_ON          = 0
+    VAL_OFF         = 1
+    VAL_STR         = ['pulse', 'space', 'timeout']
 
     def __init__(self, pin, debug=False):
         self.debug = debug
@@ -39,31 +45,54 @@ class IrRecv:
         
         self.cb = self.pi.callback(self.pin, pigpio.EITHER_EDGE, self._cb)
 
-    def main(self):
-        self.logger.debug('')
+        self.receving = False
+        self.signal = []
 
-        while True:
-            self.logger.debug('*')
-            time.sleep(5)
+    def set_watchdog(self, ms):
+        self.logger.debug('ms=%d', ms)
+
+        self.pi.set_watchdog(self.pin, ms)
 
     def _cb(self, pin, val, tick):
         self.logger.debug('pin: %d, val: %d, tick: %d', pin, val, tick)
-        if tick - self.tick < self.GLITCH_USEC:
+
+        if not self.receving:
             self.logger.debug('ignore')
             return
-
-        interval = tick - self.tick
         
+        interval  = tick - self.tick
+        self.tick = tick
+        
+        if val == pigpio.TIMEOUT:
+            self.signal.append(interval)
+            self.set_watchdog(self.WATCHDOG_CANCEL)
+            self.receving = False
+            self.logger.debug ('end   %d', interval)
+            return
+
         if interval > self.INTERVAL_MAX:
             interval = self.INTERVAL_MAX
 
+        self.set_watchdog(self.WATCHDOG_MSEC)
+
         if val == self.VAL_ON:
-            header = 'space'
+            if self.signal != []:
+                self.signal.append(interval)
         else:
-            header = 'pulse'
+            self.signal.append(interval)
             
-        print('%s %d' % (header, interval))
-        self.tick = tick
+        self.logger.debug('%s %d' % (self.VAL_STR[val], interval))
+
+    def recv(self):
+        self.logger.debug('')
+
+        self.signal   = []
+        self.receving = True
+
+        while self.receving:
+            time.sleep(0.1)
+
+        return self.signal
 
     def end(self):
         self.logger.debug('')
@@ -71,6 +100,23 @@ class IrRecv:
         self.pi.stop()
         self.logger.debug('done')
         
+    def print_signal(self, signal):
+        self.logger.debug('signal:%s', signal)
+
+        for i, interval in enumerate(self.signal):
+            print('%s %d' % (self.VAL_STR[i % 2], interval))
+        
+
+    def main(self):
+        self.logger.debug('')
+
+        while True:
+            self.logger.info('-')
+            signal = self.recv()
+            self.print_signal(signal)
+            self.logger.info('/')
+            time.sleep(1)
+
 #####
 import click
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
