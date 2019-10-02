@@ -19,8 +19,8 @@ my_logger = MyLogger(__file__)
 DEF_PIN = 27
 
 #####
-class App:
-    BOUNCE_USEC = 10
+class IrRecv:
+    GLITCH_USEC = 100
     INTERVAL_MAX = 99999
     VAL_ON = 0
     VAL_OFF = 1
@@ -35,6 +35,7 @@ class App:
 
         self.pi = pigpio.pi()
         self.pi.set_mode(self.pin, pigpio.INPUT)
+        self.pi.set_glitch_filter(self.pin, self.GLITCH_USEC)
         
         self.cb = self.pi.callback(self.pin, pigpio.EITHER_EDGE, self._cb)
 
@@ -47,7 +48,7 @@ class App:
 
     def _cb(self, pin, val, tick):
         self.logger.debug('pin: %d, val: %d, tick: %d', pin, val, tick)
-        if tick - self.tick < self.BOUNCE_USEC:
+        if tick - self.tick < self.GLITCH_USEC:
             self.logger.debug('ignore')
             return
 
@@ -81,7 +82,7 @@ def main(pin, debug):
     logger = my_logger.get_logger(__name__, debug)
     logger.debug('pin: %d', pin)
 
-    obj = App(pin, debug)
+    obj = IrRecv(pin, debug)
     try:
         obj.main()
     finally:
