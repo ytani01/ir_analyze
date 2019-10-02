@@ -3,7 +3,8 @@
 # (c) 2019 Yoichi Tanibayashi
 #
 '''
-LED
+IrRecv.py
+
 '''
 __author__ = 'Yoichi Tanibayashi'
 __date__   = '2019'
