@@ -1,8 +1,12 @@
 # lirc-analyze.py
 
-## 0. lirc-analyze.py
+## 0. pigpio
 
-### 0.1 インストール
+
+
+## 1. lirc-analyze.py
+
+### 1.1 インストール
 
 ```bash
 $ cd
@@ -11,7 +15,7 @@ $ cd ir_analyze
 $ setup.sh
 ```
 
-### 0.2 使い方
+### 1.2 使い方
 
 ```bash
 $ lirc-analyze --help
@@ -19,17 +23,9 @@ Usage: lirc-analyze.py [OPTIONS] [INFILE] [BUTTON_NAME]
 
   LIRC analyzer
 
-Options:
-  -f, --forever         loop forever
-  -i, -l, --disp_info   output information
-  -h, --disp_hex        output hex data
-  -b, --disp_bit        output bit pattern
-  -r, --disp_raw        output raw data
-  -n, --disp_normalize  output normalized data
-  --help                Show this message and exit.
 ```
 
-## 1. LIRCのインスト－ル
+## (Deprecated?)1. LIRCのインスト－ル
 
 ### 1.1 パッケージインストール
 
@@ -111,3 +107,33 @@ $ irsend SEND_ONCE device button
 ## A. Reference
 
 1. [IR Codes TV LG 55UH8509](https://github.com/arendst/Sonoff-Tasmota/wiki/IR-Codes-for-TV-LG-55UH8509)
+
+
+## A1 pigpioによる受信波形の分析
+
+### A1.1 [Win10]に「GTKWave」をインストール
+
+### A1.2 Raspberry Piで以下を実行
+
+```bash
+$ sudo pigpiod
+
+# get notification handle
+$ pigs no
+0
+
+# output vcd file
+$ pig2vcd < /dev/pigpio0 > ir.vcd &
+
+# start notification
+## for pin 27, "bits" will be ...
+##
+## 0000 1000 0000 0000 0000 0000 0000 0000
+## 0x8000000
+$ pigs nb 0 0x8000000
+
+# close notification
+$ pigs nc 0
+```
+
+### A1.3 ir.vcdをGTKWaveで読み込む
