@@ -112,10 +112,10 @@ class IrRecv:
         self.logger.debug('')
 
         while True:
-            self.logger.info('-')
+            print('# -')
             signal = self.recv()
             self.print_signal(signal)
-            self.logger.info('/')
+            print('# /')
             time.sleep(1)
 
 #####
