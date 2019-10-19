@@ -336,6 +336,7 @@ class IrSend:
                 q6.append(self.create_space_wave(us))
 
         while True:
+            self.logger.debug('send')
             self.pi.wave_chain(q6)
             time.sleep(1)
 
