@@ -1,4 +1,4 @@
-#!/usr/bin/env -S python3 -u
+#!/usr/bin/python3 -u
 #
 # (c) 2019 Yoichi Tanibayashi
 #
