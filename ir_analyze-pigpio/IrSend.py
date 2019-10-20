@@ -1,8 +1,5 @@
 #!/usr/bin/python3 -u
-<<<<<<< HEAD
-=======
 #!/usr/bin/env -S python3 -u
->>>>>>> 5c0e9582e66a48580e81a388fce2bdb705559ab4
 #
 # (c) 2019 Yoichi Tanibayashi
 #
