@@ -1,4 +1,4 @@
-#!/usr/bin/env -S python3 -u
+#!/usr/bin/python3 -u
 #
 # (c) 2019 Yoichi Tanibayashi
 #
@@ -131,6 +131,52 @@ class Wave(WaveForm):
             self.pi.wave_delete(self.wave)
 
     
+class IrConf:
+    DEF_CONF_DIR = '/etc/irconf'
+
+    def __init__(self, conf_dir=DEF_CONF_DIR, debug=False):
+        self.debug = debug
+        self.logger = my_logger.get_logger(__class__.__name__, debug)
+        self.logger.debug('conf_dir: %s', conf_dir)
+
+        self.conf_dir = conf_dir
+        
+
+    def get_conf_filename(self, dev_name):
+        self.logger.debug('dev_name: %s', dev_name)
+
+        if dev_name == '':
+            self.logger.error('dev_name is null string')
+            return ''
+
+        return self.conf_dir + '/' + dev_name
+
+    def load_conf(self, dev_name):
+        self.logger.debug('dev_name: %s', dev_name)
+
+        conf_filename = self.get_conf_filename(dev_name)
+        if conf_filename == '':
+            self.logger.warning('conf_filename is null string')
+            return None
+
+        # XXX
+
+
+    def get_sig(self, dev_name, btn_name):
+        self.logger.debug('dev_name: %s, btn_name: %s', dev_name, btn_name)
+
+        conf_data = self.load_conf(dev_name)
+
+        if conf_data is None:
+            self.logger.warning('no conf data')
+            return []
+
+        sig = conf_data['button'][btn_name]
+        
+        # XXX
+        
+
+
 class IrSend:
     FREQ = 38000      # 38KHz
     DUTY = (1 / 3.0)  # 33.3%
@@ -148,6 +194,8 @@ class IrSend:
 
         self.pulse_wave_hash = {}
         self.space_wave_hash = {}
+
+        self.conf = IrConf(debug=self.debug)
         
 
     def send(self, sig):
@@ -155,6 +203,7 @@ class IrSend:
 
     def end(self):
         self.logger.debug('')
+        self.clear_wave_hash()
         self.pi.wave_clear()
         self.pi.stop()
         self.logger.debug('done')
@@ -177,9 +226,9 @@ class IrSend:
         self.logger.debug('pin:%d, freq_KHz:%d, len_us:%d',pin,freq_KHz,len_us)
 
         wf = []
-        wave_len_us = 1000.0 / freq_KHz # = 1/(kHz*1000) * 1000 * 1000
-        wave_n        = int(round(len_us/wave_len_us))
-        on_usec       = int(round(wave_len_us * self.DUTY))
+        wave_len_us = 1000.0 / freq_KHz     # = 1/(kHz*1000) * 1000 * 1000
+        wave_n      = int(round(len_us/wave_len_us))
+        on_usec     = int(round(wave_len_us * self.DUTY))
         
         cur_usec = 0
         for i in range(wave_n):
@@ -246,6 +295,21 @@ class IrSend:
         return self.space_wave_hash[usec]
 
     
+    def send_sig(self, sig):
+        self.logger.debug('sig: %s', sig)
+
+        self.clear_wave_hash()
+        w = []
+        
+        for i, us in enumerate(sig):
+            if i % 2 == 0:
+                w.append(self.create_pulse_wave(us))
+            else:
+                w.append(self.create_space_wave(us))
+
+        self.pi.wave_chain(w)
+        
+
     def sample(self):
         '''
         Sample code
@@ -329,16 +393,11 @@ class IrSend:
               9050,  2262,
               565]
 
-        for i, us in enumerate(u1):
-            if i % 2 == 0:
-                q6.append(self.create_pulse_wave(us))
-            else:
-                q6.append(self.create_space_wave(us))
-
         while True:
             self.logger.debug('send')
-            self.pi.wave_chain(q6)
-            time.sleep(1)
+            self.send_sig(u1)
+            print('-', end='')
+            time.sleep(2)
 
 
 #####
