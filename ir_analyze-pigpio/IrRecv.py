@@ -46,7 +46,7 @@ class IrRecv:
         
         self.cb = self.pi.callback(self.pin, pigpio.EITHER_EDGE, self._cb)
 
-        self.receving = False
+        self.receiving = False
         self.signal = []
 
     def set_watchdog(self, ms):
@@ -57,7 +57,7 @@ class IrRecv:
     def _cb(self, pin, val, tick):
         self.logger.debug('pin: %d, val: %d, tick: %d', pin, val, tick)
 
-        if not self.receving:
+        if not self.receiving:
             self.logger.debug('ignore')
             return
         
@@ -65,9 +65,10 @@ class IrRecv:
         self.tick = tick
         
         if val == pigpio.TIMEOUT:
-            self.signal.append(interval)
+            if len(self.signal[-1]) == 1:
+                   self.signal[-1].append(interval)
             self.set_watchdog(self.WATCHDOG_CANCEL)
-            self.receving = False
+            self.receiving = False
             self.logger.debug ('end   %d', interval)
             return
 
@@ -78,9 +79,9 @@ class IrRecv:
 
         if val == self.VAL_ON:
             if self.signal != []:
-                self.signal.append(interval)
+                self.signal[-1].append(interval)
         else:
-            self.signal.append(interval)
+            self.signal.append([interval])
             
         self.logger.debug('%s %d' % (self.VAL_STR[val], interval))
 
@@ -88,9 +89,9 @@ class IrRecv:
         self.logger.debug('')
 
         self.signal   = []
-        self.receving = True
+        self.receiving = True
 
-        while self.receving:
+        while self.receiving:
             time.sleep(0.1)
 
         return self.signal
@@ -104,8 +105,9 @@ class IrRecv:
     def print_signal(self, signal):
         self.logger.debug('signal:%s', signal)
 
-        for i, interval in enumerate(self.signal):
-            print('%s %d' % (self.VAL_STR[i % 2], interval))
+        for (p, s) in self.signal:
+            print('%s %d' % (self.VAL_STR[0], p))
+            print('%s %d' % (self.VAL_STR[1], s))
         
 
     def main(self):
@@ -121,7 +123,8 @@ class IrRecv:
 #####
 import click
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
-@click.command(context_settings=CONTEXT_SETTINGS)
+@click.command(context_settings=CONTEXT_SETTINGS,
+               help='IR signal receiver')
 @click.argument('pin', type=int, default=27)
 @click.option('--debug', '-d', 'debug', is_flag=True, default=False,
               help='debug flag')

@@ -105,6 +105,8 @@ class WaveForm:
         
 #####
 class Wave(WaveForm):
+    PIN_PWM = [12, 13, 18]
+
     def __init__(self, pi, pin, debug=False):
         self.debug = debug
         self.logger = my_logger.get_logger(__class__.__name__, debug)
@@ -113,6 +115,10 @@ class Wave(WaveForm):
         self.pi  = pi
         self.pin = pin
 
+        if pin in self.PIN_PWM:
+            msg = 'pin:%d is one of PWM audio pins:%s' % (pin, self.PIN_PWM)
+            raise ValueError(msg)
+        
         super().__init__(self.pin, debug=self.debug)
         self.wave     = None
         
@@ -197,10 +203,10 @@ class IrSend:
         self.space_wave_hash = {}
 
         self.conf = IrConf(debug=self.debug)
-        
 
-    def send(self, sig):
-        self.logger.debug('')
+
+    def send(self, dev_name, btn_name):
+        self.logger.debug('dev_name: %s, btn_name: %s', dev_name, btn_name)
 
     def end(self):
         self.logger.debug('')
@@ -296,21 +302,36 @@ class IrSend:
         return self.space_wave_hash[usec]
 
     
-    def send_sig(self, sig):
+    def send_ir_sig(self, sig):
         self.logger.debug('sig: %s', sig)
 
         self.clear_wave_hash()
         w = []
-        
+
+        total_us = 0
         for i, us in enumerate(sig):
+            total_us += us
+            
             if i % 2 == 0:
                 w.append(self.create_pulse_wave(us))
             else:
                 w.append(self.create_space_wave(us))
+        self.logger.debug('total_us: %d', total_us)
 
         self.pi.wave_chain(w)
-        
+        '''
+        sleep_sec = (total_us / 1000.0 / 1000.0) + 0.5
+        self.logger.debug('sleep_sec: %f', sleep_sec)
+        time.sleep(sleep_sec)
+        '''
+        wait_tick = ''
+        while self.pi.wave_tx_busy():
+            wait_tick += '*'
+            time.sleep(0.01)
+        self.logger.debug('wait_tick: %s', wait_tick)
+        time.sleep(0.1)
 
+        
     def sample(self):
         '''
         for test and sample
@@ -381,7 +402,8 @@ class IrSend:
         
         self.clear_wave_hash()
         q6 = []
-        '''
+
+        # tv-light power
         u1 = [9050,  4525,
               565,   565,   565,   565,   565,   565,   565,   565,
               565,   565,   565,   565,   565,   565,   565,   565,
@@ -394,7 +416,9 @@ class IrSend:
               565, 39593,
               9050,  2262,
               565]
+
         '''
+        # ball-lamp on
         u1 = [8933,  4466,
                 558,   558,   558,   558,   558,   558,   558,   558,
                 558,   558,   558,   558,   558,   558,   558,   558,
@@ -419,22 +443,21 @@ class IrSend:
                 558, 39643,
                8933,  2233,
                 558]
+        '''
 
+        
         while True:
             self.logger.debug('send')
-<<<<<<< HEAD
-            self.send_sig(u1)
+            self.send_ir_sig(u1)
             print('-', end='')
-=======
-            self.pi.wave_chain(q6)
->>>>>>> 5c0e9582e66a48580e81a388fce2bdb705559ab4
-            time.sleep(2)
+            time.sleep(3)
 
 
 #####
 import click
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
-@click.command(context_settings=CONTEXT_SETTINGS)
+@click.command(context_settings=CONTEXT_SETTINGS,
+               help='IR signal transmitter')
 @click.argument('pin', type=int, default=DEF_PIN)
 @click.option('--debug', '-d', 'debug', is_flag=True, default=False,
               help='debug flag')
