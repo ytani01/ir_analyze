@@ -210,7 +210,7 @@ class IrAnalyze:
                 continue
             if p == [3, 1]:
                 self.sig2n['leader?'].append(p)
-                self.sig_format2.append('Dyson?')
+                self.sig_format.append('DYSON')
                 continue
             # repeat
             if n1 in [15, 16, 17] and n2 in [3, 4, 5]:
@@ -308,7 +308,7 @@ class IrAnalyze:
         # 最後のspace時間を引く
         self.sig_line_usec[-1] -= self.raw_data[-1][1]
 
-        self.logger.debug('sig_str=%s', self.sig_str)
+        self.logger.debug('sig_str=%s',       self.sig_str)
         self.logger.debug('sig_line_usec=%s', self.sig_line_usec)
 
         # leaderを区切りとして、信号文字列を区切る
@@ -358,11 +358,36 @@ class IrAnalyze:
         # T.B.D.
 
         ### 結果のまとめ
+        self.sig_format_result = ''
+        if len(self.sig_format) == 0:
+            if len(self.sig_format2) == 0:
+                self.sig_format_result = '?'
+            if len(self.sig_format2) == 1:
+                self.sig_format_result = self.sig_format2[0]
+            else:
+                self.sig_format_result = self.sig_format2
+                
+        elif len(self.sig_format) == 1:
+            self.sig_format_result = self.sig_format[0]
+
+        else:
+            self.sig_format_result = self.sig_format
+            
         self.result = {
-            "format":   self.sig_format,
-            "T":        self.T,
-            "sig_tbl":  self.ch2sig,
-            "sig_list": self.sig_linear
+            "header": {
+                "name":     "dev_name",
+                "memo":     "memo",
+                "format":   self.sig_format_result,
+                "T":        self.T,       # us
+                "sig_tbl":  self.ch2sig,
+                "macro": {
+                    "P":    "",
+                    "Q":    ""
+                }
+            },
+            "buttons": {
+                "button": self.sig_linear
+            }
         }
 
         return True
@@ -412,6 +437,8 @@ class IrAnalyze:
 
 ####
 class App:
+    TMP_JSON_FILE = '/tmp/IrAnalyze.json'
+
     def __init__(self, pin, debug=False):
         self.debug = debug
         self.logger = my_logger.get_logger(__class__.__name__, debug)
@@ -428,9 +455,13 @@ class App:
         while True:
             raw_data = self.rcvr.recv()
             if self.analyzer.analyze(raw_data):
-                print(self.analyzer.result)
-                with open('/tmp/aaa.json', 'w') as f:
-                    json.dump(self.analyzer.result, f)
+                r = self.analyzer.result
+                print('%s, %s' % (r['header']['format'],
+                                  ''.join(r['buttons']['button']).replace(' ','')))
+                with open(self.TMP_JSON_FILE, 'w') as f:
+                    #json.dump(r, f, indent=2)
+                    json.dump(r, f)
+                    f.write('\n')
                 break
         
 

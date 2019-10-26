@@ -65,8 +65,9 @@ class IrRecv:
         self.tick = tick
         
         if val == pigpio.TIMEOUT:
-            if len(self.signal[-1]) == 1:
-                   self.signal[-1].append(interval)
+            if len(self.signal) > 0:
+                if len(self.signal[-1]) == 1:
+                    self.signal[-1].append(interval)
             self.set_watchdog(self.WATCHDOG_CANCEL)
             self.receiving = False
             self.logger.debug ('end   %d', interval)

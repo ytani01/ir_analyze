@@ -137,52 +137,6 @@ class Wave(WaveForm):
         if self.wave is not None:
             self.pi.wave_delete(self.wave)
 
-    
-class IrConf:
-    DEF_CONF_DIR = '/etc/irconf'
-
-    def __init__(self, conf_dir=DEF_CONF_DIR, debug=False):
-        self.debug = debug
-        self.logger = my_logger.get_logger(__class__.__name__, debug)
-        self.logger.debug('conf_dir: %s', conf_dir)
-
-        self.conf_dir = conf_dir
-        
-
-    def get_conf_filename(self, dev_name):
-        self.logger.debug('dev_name: %s', dev_name)
-
-        if dev_name == '':
-            self.logger.error('dev_name is null string')
-            return ''
-
-        return self.conf_dir + '/' + dev_name
-
-    def load_conf(self, dev_name):
-        self.logger.debug('dev_name: %s', dev_name)
-
-        conf_filename = self.get_conf_filename(dev_name)
-        if conf_filename == '':
-            self.logger.warning('conf_filename is null string')
-            return None
-
-        # XXX
-
-
-    def get_sig(self, dev_name, btn_name):
-        self.logger.debug('dev_name: %s, btn_name: %s', dev_name, btn_name)
-
-        conf_data = self.load_conf(dev_name)
-
-        if conf_data is None:
-            self.logger.warning('no conf data')
-            return []
-
-        sig = conf_data['button'][btn_name]
-        
-        # XXX
-        
-
 
 class IrSend:
     FREQ = 38000      # 38KHz
@@ -202,8 +156,6 @@ class IrSend:
         self.pulse_wave_hash = {}
         self.space_wave_hash = {}
 
-        self.conf = IrConf(debug=self.debug)
-
 
     def send(self, dev_name, btn_name):
         self.logger.debug('dev_name: %s, btn_name: %s', dev_name, btn_name)
@@ -220,34 +172,7 @@ class IrSend:
 
         for i, interval in enumerate(self.signal):
             print('%s %d' % (self.VAL_STR[i % 2], interval))
-        
 
-    def carrier(self, pin, freq_KHz, len_us):
-        """
-        <<< Don't use ! >>>
-        <<< Reference code.>>>
-
-        Generate carrier square wave.
-
-        """
-        self.logger.debug('pin:%d, freq_KHz:%d, len_us:%d',pin,freq_KHz,len_us)
-
-        wf = []
-        wave_len_us = 1000.0 / freq_KHz     # = 1/(kHz*1000) * 1000 * 1000
-        wave_n      = int(round(len_us/wave_len_us))
-        on_usec     = int(round(wave_len_us * self.DUTY))
-        
-        cur_usec = 0
-        for i in range(wave_n):
-            target_usec = int(round((i+1) * wave_len_us))
-            cur_usec    += on_usec
-            off_usec    = target_usec - cur_usec
-            cur_usec    += off_usec
-            wf.append(pigpio.pulse(1 << pin, 0, on_usec))
-            wf.append(pigpio.pulse(0, 1 << pin, off_usec))
-            
-        return wf
-        
 
     def clear_wave_hash(self):
         self.logger.debug('')
@@ -302,8 +227,12 @@ class IrSend:
         return self.space_wave_hash[usec]
 
     
-    def send_ir_sig(self, sig):
+    def send_ir_pulse_space(self, sig):
         self.logger.debug('sig: %s', sig)
+
+        if len(sig) <= 10:
+            self.logger.warning("sig is too short: %s .. ignored", sig)
+            return
 
         self.clear_wave_hash()
         w = []
@@ -331,15 +260,112 @@ class IrSend:
         self.logger.debug('wait_tick: %s', wait_tick)
         time.sleep(0.1)
 
+    def button_info2pulse_space(self, button_info, button_name):
+        '''
+        button_info = {
+          "header": {
+            "T": us
+            "sig_tbl": {
+              "-": [n, n],
+              "=": [n, n],
+              "0": [n, n],
+              "1": [n, n],
+              "/": [n, n],
+              "*": [n, n],
+              "?": [n, n]
+            },
+            "macro": {
+              "P": "hex",
+              "Q": "hex"
+            }
+          },
+          "buttons": {
+            "button1": "-P(hex)Q/*/*/",
+            "button2": "- P (hex) /",
+            "button3": ["-", "(hex)", "Q", "/", "*/", "*/"]
+            :
+          }
+        }
+        '''
+        self.logger.debug("button_info=%s, button_name=%s",
+                          button_info, button_name)
+
+        #
+        # sig_list -> sig_str
+        # リスト構造を単一文字列に変換
+        #
+        sig_str = ''
+
+        sig_list = button_info['buttons'][button_name]
+        self.logger.debug("sig_list=%s", sig_list)
+
+        if type(sig_list) == str:
+            sig_str = sig_list
+        elif type(sig_list) == list:
+            for s in sig_list:
+                self.logger.debug("s=%s", s)
+                sig_str += s
+        else:
+            self.logger.error("invalid sig_list: %s", sig_list)
+            return []
+
+        self.logger.debug("sig_str=%s", sig_str)
+
+        #
+        # マクロ(prefix, postfix etc.)展開
+        #
+        for ch in sig_str:
+            if ch in button_info['header']['macro']:
+                sig_str = sig_str.replace(ch,
+                                          button_info['header']['macro'][ch])
+                self.logger.debug("sig_str=%s", sig_str)
+
+        #
+        # スペース削除
+        #
+        sig_str = sig_str.replace(' ', '')
         
+        #
+        # hex -> bin
+        #
+        bin_str = ''
+        for ch in sig_str:
+            if ch in '0123456789ABCDEF':
+                bin_str += format(int(ch, 16), '04b')
+            else:
+                bin_str += ch
+            self.logger.debug("bin_str=%s", bin_str)
+        
+        #
+        # make pulse,space list
+        #
+        pulse_space_list = []
+        t0 = button_info['header']['T']
+        for ch in bin_str:
+            sig = button_info['header']['sig_tbl'][ch][0]
+            pulse_space_list.append(sig[0] * t0)
+            pulse_space_list.append(sig[1] * t0)
+        self.logger.debug('pulse_space_list=%s', pulse_space_list)
+        
+        return pulse_space_list
+
+
+    def send_ir(self, button_info, button_name):
+        self.logger.debug('button_info=%s, button_name=%s',
+                          button_info, button_name)
+
+        pulse_space = self.button_info2pulse_space(button_info, button_name)
+        self.logger.debug("pulse_space=%s", pulse_space)
+
+        self.send_ir_pulse_space(pulse_space)
+        
+
     def sample(self):
         '''
         for test and sample
         '''
         self.logger.debug('')
 
-        self.carrier(self.pin, 2.0/1000, 0.8*1000*1000)
-        
         self.pi.wave_add_new()
 
         '''
@@ -445,12 +471,118 @@ class IrSend:
                 558]
         '''
 
+        bi_tv_light = {
+            "header": {
+                "name": "dev_name",
+                "memo": "memo",
+                "format": "NEC",
+                "T": 565.625,
+                "sig_tbl": {
+                    "-": [
+                        [
+                            16,
+                            8
+                        ]
+                    ],
+                    "=": [],
+                    "0": [
+                        [
+                            1,
+                            1
+                        ]
+                    ],
+                    "1": [[1,3]],
+                    "/": [[1,70],  [1,763],[1,1768]],
+                    "*": [[16,4]],
+                    "?": []
+                },
+                "macro": {
+                    "P": "00FF",
+                    "Q": ""
+                }
+            },
+            "buttons": {
+                "button": [
+                    "-",
+                    "P 02FD",
+                    "/",
+                    "*",
+                    "/",
+                    "-",
+                    "P 22DD",
+                    "/",
+                    "*",
+                    "/"
+                ]
+            }
+        }
+
+        bi_aircon ={
+            "header": {
+                "name": "dev_name",
+                "memo": "memo",
+                "format": "AEHA",
+                "T": 417.66161616161617,
+                "sig_tbl": {
+                    "-": [
+                        [
+                            8,
+                            4
+                        ]
+                    ],
+                    "=": [],
+                    "0": [
+                        [
+                            1,
+                            1
+                        ]
+                    ],
+                    "1": [
+                        [
+                            1,
+                            3
+                        ]
+                    ],
+                    "/": [
+                        [
+                            1,
+                            2395
+                        ]
+                    ],
+                    "*": [],
+                    "?": []
+                },
+                "macro": {
+                    "P": "-28C6 0008 08",
+                    "Q": "7F 900C 8",
+                    "R": "80 0000 0000 047"
+                }
+            },
+            "buttons": {
+                "off":     ["P 40BF/"],
+                "on_cool_25": ["PQ 9 R 8 /"],
+                "on_cool_26": ["PQ 5 R 0 /"],
+                "on_cool_27": ["PQ D R F /"],
+                "on_cool_28": ["PQ 3 R 7 /"],
+                "button2": ["P Q 0980 4000 R/"]
+            }
+        }
+
         
+        '''
         while True:
             self.logger.debug('send')
-            self.send_ir_sig(u1)
+            #self.send_ir_pulse_space(u1)
+            self.send_ir(bi1, "button")
             print('-', end='')
             time.sleep(3)
+        '''
+        self.logger.debug('send')
+        #self.send_ir(bi_aircon, "button1")
+        self.send_ir(bi_aircon, "on_cool_25")
+        time.sleep(3)
+        self.send_ir(bi_aircon, "off")
+        
 
 
 #####

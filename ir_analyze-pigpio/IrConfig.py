@@ -20,30 +20,39 @@ class IrConfig:
     '''
     JSON format:
     {
-      "name": "dev_name"
-      "memo": "memo_str",
-      "T":    T(us),
-      "sig_tbl": {
-        "-": [n, n], .. leader
-        "0": [n, n], .. 0
-        "1": [n, n], .. 1
-        "/": [n, n], .. trailer
-        "*": [n, n]  .. repeat
-      },
-      "macro": {
-        "p": (hex) .. prefix, postfix or else
-        "q": (hex) .. prefix, postfix or else
-      },
+      "header": {
+        "name": "dev_name",
+        "memo": "memo_str",
+        "T":    T(us),
+        "sig_tbl": {
+          "-": [n, n], .. leader
+          "=": [n, n], .. leader?
+          "0": [n, n], .. 0
+          "1": [n, n], .. 1
+          "/": [n, n], .. trailer
+          "*": [n, n], .. repeat
+          "?": [n, n]  .. ???
+        },
+        "macro": {
+          "P": "(hex)", .. prefix, postfix or else
+          "Q": "(hex)"  .. prefix, postfix or else
+          :
+        }
+        # optional
+        "format:": "AEHA"
+      }
       "buttons": {
-        "button1": "- a (hex)"
-        "button2": "- (hex) b"
+        "button1": "-P(hex)Q/*/*/",
+        "button2": "- P (hex) /",
+        "button3": ["-", "(hex)", "Q", "/", "*/", "*/"]
+        :
       }
     }
     '''
 
-    DEF_CONF_DIR = "/etc/ir.conf.d"
-    DEF_CONF_PATH = ['.', '@home', DEF_CONF_DIR]
-    DEF_CONF_NAME = "ir.conf"
+    DEF_CONF_DIR      = "/etc/ir.conf.d"
+    DEF_CONF_PATH     = ['.', '@home', DEF_CONF_DIR]
+    DEF_CONF_FILENAME = "ir.conf"
     
     def __init__(self, filename='', debug=False):
         self.debug = debug
