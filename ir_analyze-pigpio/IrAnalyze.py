@@ -249,6 +249,8 @@ class IrAnalyze:
                 for sig in self.sig2n[key]:
                     if sig in self.sig2n[key + '?']:
                         self.sig2n[key + '?'].remove(sig)
+        self.logger.debug('sig2n=%s', self.sig2n)
+
 
         self.ch2sig = {}
         for key in self.SIG_CH.keys():
@@ -272,7 +274,6 @@ class IrAnalyze:
 
         self.logger.debug('sig_format=%s', self.sig_format)
         self.logger.debug('sig_format2=%s', self.sig_format2)
-        self.logger.debug('sig2n=%s', self.sig2n)
 
         # 信号名リストを生成
         self.sig_list = []

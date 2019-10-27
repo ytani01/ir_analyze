@@ -568,6 +568,24 @@ class IrSend:
             }
         }
 
+        bi_lg_tv = {
+            "header": {
+                "name": "dev_name",
+                "memo": "memo",
+                "format": "NEC",
+                "T": 551.40625,
+                "sig_tbl": {
+                    "-": [[16, 8]], "=": [],
+                    "0": [[1, 1]], "1": [[1, 3]],
+                    "/": [[1, 73], [1, 174], [1, 1818]],
+                    "*": [[16, 4]], "?": []},
+                "macro": {
+                    "P": "",
+                    "Q": ""}},
+            "buttons": {
+                "power": ["-", "20DF 10EF", "/", "*", "/", "*", "/"]
+            }
+        }
         
         '''
         while True:
@@ -579,9 +597,13 @@ class IrSend:
         '''
         self.logger.debug('send')
         #self.send_ir(bi_aircon, "button1")
+        '''
         self.send_ir(bi_aircon, "on_cool_25")
         time.sleep(3)
         self.send_ir(bi_aircon, "off")
+        '''
+
+        self.send_ir(bi_lg_tv, "power")
         
 
 
