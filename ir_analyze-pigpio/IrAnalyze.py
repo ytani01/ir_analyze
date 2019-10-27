@@ -8,7 +8,7 @@ IrAnalyze.py
 __author__ = 'Yoichi Tanibayashi'
 __date__   = '2019'
 
-from IrConfig import IrConfig
+from IrConfig import IrConfData
 import json
 
 #####
@@ -310,7 +310,7 @@ class IrAnalyze:
                     sig = self.bit2hex(sig, n=4)
                     self.sig_line1.append(sig)
                 else:
-                    self.sig_line1.append(IrConfig.DATA_HEADER_BIN + sig)
+                    self.sig_line1.append(IrConfData.HEADER_BIN + sig)
             else:
                 self.sig_line1.append(sig)
         self.logger.debug('sig_line1=%s', self.sig_line1)
@@ -318,8 +318,8 @@ class IrAnalyze:
         # 2進数部分を「右から」4桁毎に区切る
         self.sig_line2 = []
         for s in self.sig_line1:
-            if s.startswith(IrConfig.DATA_HEADER_BIN):
-                s1 = s[len(IrConfig.DATA_HEADER_BIN):]
+            if s.startswith(IrConfData.HEADER_BIN):
+                s1 = s[len(IrConfData.HEADER_BIN):]
                 s1 = s1[::-1]
                 s2 = ''
                 for i in range(len(s1)):
@@ -329,7 +329,7 @@ class IrAnalyze:
                 s = s2[::-1]
                 if s[0] == ' ':
                     s = s[1:]
-                s = IrConfig.DATA_HEADER_BIN + s
+                s = IrConfData.HEADER_BIN + s
             self.sig_line2.append(s)
         self.logger.debug('sig_line2=%s', self.sig_line2)
                     
@@ -365,7 +365,7 @@ class IrAnalyze:
                 "memo":    "memo",
                 "format":  self.sig_format_result,
                 "T":       self.T,       # us
-                "sig_tbl": self.ch2sig,
+                "sym_tbl": self.ch2sig,
                 "macro":   {
                     "[prefix]":   "",
                     "[postfix]]": ""
@@ -422,13 +422,13 @@ class App:
                 with open(self.TMP_JSON_FILE, 'w') as f:
                     json.dump(r, f)
                     f.write('\n')
-                if len(r['header']['sig_tbl']['?']) > 0:
+                if len(r['header']['sym_tbl']['?']) > 0:
                     print("\'?\': %s .. try again" %
-                          r['header']['sig_tbl']['?'])
+                          r['header']['sym_tbl']['?'])
                     continue
-                if len(r['header']['sig_tbl']['=']) > 0:
+                if len(r['header']['sym_tbl']['=']) > 0:
                     print("\'=\' in \'%s\' .. try again" %
-                          r['header']['sig_tbl']['='])
+                          r['header']['sym_tbl']['='])
                     continue
                 
                 break

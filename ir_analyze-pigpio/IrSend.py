@@ -10,7 +10,7 @@ IrSend.py
 __author__ = 'Yoichi Tanibayashi'
 __date__   = '2019'
 
-from IrConfig import IrConfig
+from IrConfig import IrConfData, IrConfFile
 import pigpio
 import time
 
@@ -263,30 +263,7 @@ class IrSend:
 
     def button_info2pulse_space(self, button_info, button_name):
         '''
-        button_info = {
-          "header": {
-            "T": us
-            "sig_tbl": {
-              "-": [n, n],
-              "=": [n, n],
-              "0": [n, n],
-              "1": [n, n],
-              "/": [n, n],
-              "*": [n, n],
-              "?": [n, n]
-            },
-            "macro": {
-              "P": "hex",
-              "Q": "hex"
-            }
-          },
-          "buttons": {
-            "button1": "-P(hex)Q/*/*/",
-            "button2": "- P (hex) /",
-            "button3": ["-", "(hex)", "Q", "/", "*/", "*/"]
-            :
-          }
-        }
+        {button_info} -> [pulse1, space1, pulse2, space2, ..]
         '''
         self.logger.debug("button_info=%s, button_name=%s",
                           button_info, button_name)
@@ -325,33 +302,36 @@ class IrSend:
         sig_str = sig_str.replace(' ', '')
         self.logger.debug("sig_str=%s", sig_str)
 
+        #
         # 分割
-        for ch in button_info['header']['sig_tbl']:
+        #
+        for ch in button_info['header']['sym_tbl']:
             if ch in '01':
                 continue
             sig_str = sig_str.replace(ch, ' ' + ch + ' ')
         self.logger.debug("sig_str=%s", sig_str)
-        sig_list = sig_str.split()
-        self.logger.debug("sig_list=%s", sig_list)
+        sig_list1 = sig_str.split()
+        self.logger.debug("sig_list=%s", sig_list1)
 
         #
         # hex -> bin
         #
         sig_list2 = []
-        for sig in sig_list:
-            if sig in button_info['header']['sig_tbl']:
-                sig_list2.append(sig)
-                continue
+        for sig in sig_list1:
+            if sig in button_info['header']['sym_tbl']:
+                if sig not in '01':
+                    sig_list2.append(sig)
+                    continue
 
-            if sig.startswith(IrConfig.DATA_HEADER_BIN):
+            if sig.startswith(IrConfData.HEADER_BIN):
                 # binary
-                sig_list2.append(sig[len(IrConfig.DATA_HEADER_BIN):])
+                sig_list2.append(sig[len(IrConfData.HEADER_BIN):])
                 continue
 
             # hex -> bin
             bin_str = ''
             for ch in sig:
-                if ch in '0123456789ABCDEF':
+                if ch in '0123456789ABCDEFabcdef':
                     bin_str += format(int(ch, 16), '04b')
                 else:
                     bin_str += ch
@@ -372,9 +352,9 @@ class IrSend:
         pulse_space_list = []
         t0 = button_info['header']['T']
         for ch in sig_str2:
-            if ch not in button_info['header']['sig_tbl']:
+            if ch not in button_info['header']['sym_tbl']:
                 continue
-            sig = button_info['header']['sig_tbl'][ch][0]
+            sig = button_info['header']['sym_tbl'][ch][0]
             pulse_space_list.append(sig[0] * t0)
             pulse_space_list.append(sig[1] * t0)
         self.logger.debug('pulse_space_list=%s', pulse_space_list)
@@ -509,7 +489,7 @@ class IrSend:
                 "memo": "memo",
                 "format": "NEC",
                 "T": 565.625,
-                "sig_tbl": {
+                "sym_tbl": {
                     "-": [
                         [
                             16,
@@ -555,7 +535,7 @@ class IrSend:
                 "memo": "memo",
                 "format": "AEHA",
                 "T": 417.66161616161617,
-                "sig_tbl": {
+                "sym_tbl": {
                     "-": [
                         [
                             8,
@@ -606,7 +586,7 @@ class IrSend:
                 "memo": "memo",
                 "format": "NEC",
                 "T": 551.40625,
-                "sig_tbl": {
+                "sym_tbl": {
                     "-": [[16, 8]], "=": [],
                     "0": [[1, 1]], "1": [[1, 3]],
                     "/": [[1, 73], [1, 174], [1, 1818]],
@@ -625,7 +605,7 @@ class IrSend:
                 "memo": "memo",
                 "format": "SONY",
                 "T": 597.0892857142857,
-                "sig_tbl": {
+                "sym_tbl": {
                     "-": [[4, 1]],
                     "=": [],
                     "0": [[1, 1]],
