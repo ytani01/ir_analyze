@@ -53,6 +53,8 @@ class IrConfig:
     DEF_CONF_DIR      = "/etc/ir.conf.d"
     DEF_CONF_PATH     = ['.', '@home', DEF_CONF_DIR]
     DEF_CONF_FILENAME = "ir.conf"
+
+    DATA_HEADER_BIN   = '(b)'
     
     def __init__(self, filename='', debug=False):
         self.debug = debug

@@ -10,6 +10,7 @@ IrSend.py
 __author__ = 'Yoichi Tanibayashi'
 __date__   = '2019'
 
+from IrConfig import IrConfig
 import pigpio
 import time
 
@@ -314,34 +315,65 @@ class IrSend:
         #
         # マクロ(prefix, postfix etc.)展開
         #
-        for ch in sig_str:
-            if ch in button_info['header']['macro']:
-                sig_str = sig_str.replace(ch,
-                                          button_info['header']['macro'][ch])
-                self.logger.debug("sig_str=%s", sig_str)
+        for m in button_info['header']['macro']:
+            sig_str = sig_str.replace(m, button_info['header']['macro'][m])
+            self.logger.debug("m=%s, sig_str=%s", m, sig_str)
 
         #
         # スペース削除
         #
         sig_str = sig_str.replace(' ', '')
-        
+        self.logger.debug("sig_str=%s", sig_str)
+
+        # 分割
+        for ch in button_info['header']['sig_tbl']:
+            if ch in '01':
+                continue
+            sig_str = sig_str.replace(ch, ' ' + ch + ' ')
+        self.logger.debug("sig_str=%s", sig_str)
+        sig_list = sig_str.split()
+        self.logger.debug("sig_list=%s", sig_list)
+
         #
         # hex -> bin
         #
-        bin_str = ''
-        for ch in sig_str:
-            if ch in '0123456789ABCDEF':
-                bin_str += format(int(ch, 16), '04b')
-            else:
-                bin_str += ch
-            self.logger.debug("bin_str=%s", bin_str)
-        
+        sig_list2 = []
+        for sig in sig_list:
+            if sig in button_info['header']['sig_tbl']:
+                sig_list2.append(sig)
+                continue
+
+            if sig.startswith(IrConfig.DATA_HEADER_BIN):
+                # binary
+                sig_list2.append(sig[len(IrConfig.DATA_HEADER_BIN):])
+                continue
+
+            # hex -> bin
+            bin_str = ''
+            for ch in sig:
+                if ch in '0123456789ABCDEF':
+                    bin_str += format(int(ch, 16), '04b')
+                else:
+                    bin_str += ch
+            sig_list2.append(bin_str)
+        self.logger.debug("sig_list2=%s", sig_list2)
+
+        #
+        # 一つの文字列に再結合
+        #
+        sig_str2 = ''
+        for sig in sig_list2:
+            sig_str2 += sig
+        self.logger.debug("sig_str2=%s", sig_str2)
+
         #
         # make pulse,space list
         #
         pulse_space_list = []
         t0 = button_info['header']['T']
-        for ch in bin_str:
+        for ch in sig_str2:
+            if ch not in button_info['header']['sig_tbl']:
+                continue
             sig = button_info['header']['sig_tbl'][ch][0]
             pulse_space_list.append(sig[0] * t0)
             pulse_space_list.append(sig[1] * t0)
@@ -553,18 +585,18 @@ class IrSend:
                     "?": []
                 },
                 "macro": {
-                    "P": "-28C6 0008 08",
+                    "[prefix]": "-28C6 0008 08",
                     "Q": "7F 900C 8",
                     "R": "80 0000 0000 047"
                 }
             },
             "buttons": {
-                "off":     ["P 40BF/"],
-                "on_cool_25": ["PQ 9 R 8 /"],
-                "on_cool_26": ["PQ 5 R 0 /"],
-                "on_cool_27": ["PQ D R F /"],
-                "on_cool_28": ["PQ 3 R 7 /"],
-                "button2": ["P Q 0980 4000 R/"]
+                "off":     ["[prefix] 40BF/"],
+                "on_cool_25": ["[prefix]Q 9 R 8 /"],
+                "on_cool_26": ["[prefix]Q 5 R 0 /"],
+                "on_cool_27": ["[prefix]Q D R F /"],
+                "on_cool_28": ["[prefix]Q 3 R 7 /"],
+                "button2": ["[prefix] Q 0980 4000 R/"]
             }
         }
 
@@ -580,13 +612,48 @@ class IrSend:
                     "/": [[1, 73], [1, 174], [1, 1818]],
                     "*": [[16, 4]], "?": []},
                 "macro": {
-                    "P": "",
+                    "[prefix]": "",
                     "Q": ""}},
             "buttons": {
                 "power": ["-", "20DF 10EF", "/", "*", "/", "*", "/"]
             }
         }
-        
+
+        bi_sony_bl = {
+            "header": {
+                "name": "dev_name",
+                "memo": "memo",
+                "format": "SONY",
+                "T": 597.0892857142857,
+                "sig_tbl": {
+                    "-": [[4, 1]],
+                    "=": [],
+                    "0": [[1, 1]],
+                    "1": [[2, 1]],
+                    "/": [[2, 19], [2, 1771]],
+                    "*": [],
+                    "?": []},
+                "macro": {
+                    "[prefix]": "",
+                    "[postfix]": "0101 1010 0111"
+                }
+            },
+            "buttons": {
+                "ok": [
+                    "-(b)101 1110 0101 1010 0111/",
+                    "-(b)101 1110 0101 1010 0111/",
+                    "-(b)101 1110 0101 1010 0111/",
+                    "-(b)101 1110 0101 1010 0111/"
+                ],
+                "home": [
+                    "-(b)010 0001 [postfix]/",
+                    "-(b)010 0001 [postfix]/",
+                    "-(b)010 0001 [postfix]/"
+                ]
+            }
+        }
+
+
         '''
         while True:
             self.logger.debug('send')
@@ -597,13 +664,16 @@ class IrSend:
         '''
         self.logger.debug('send')
         #self.send_ir(bi_aircon, "button1")
-        '''
+
+        self.send_ir(bi_sony_bl, "home")
+        time.sleep(2)
         self.send_ir(bi_aircon, "on_cool_25")
         time.sleep(3)
         self.send_ir(bi_aircon, "off")
-        '''
+        time.sleep(2)
+        self.send_ir(bi_sony_bl, "home")
 
-        self.send_ir(bi_lg_tv, "power")
+        #self.send_ir(bi_lg_tv, "power")
         
 
 

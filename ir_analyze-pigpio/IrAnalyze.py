@@ -8,6 +8,7 @@ IrAnalyze.py
 __author__ = 'Yoichi Tanibayashi'
 __date__   = '2019'
 
+from IrConfig import IrConfig
 import json
 
 #####
@@ -284,76 +285,59 @@ class IrAnalyze:
         self.logger.debug('sig_list=%s', self.sig_list)
 
         # 信号の文字列<sig_str>を生成
-        # 信号列毎(leaderから)の時間<sig_line_usec>も算出(意味ない？)
-        # (最後のtrailerのspace時間は、省く)
-        # leader毎に' 'を挿入しておく
         self.sig_str = ''
-        self.sig_line_usec = []
         for i, sig in enumerate(self.sig_list):
-            if sig == 'leader' or sig == 'leader?':
-                # 前の信号の時間から最後のspace時間を引く
-                if len(self.sig_line_usec) > 0:
-                    self.sig_line_usec[-1] -= self.raw_data[i-1][1]
-                    
-                self.sig_str += ' '
-                self.sig_line_usec.append(0)
-
-            self.sig_str += self.SIG_CH[sig]
-            
-            if self.sig_line_usec == []:
-                self.sig_line_usec = [0]
-                
-            self.sig_line_usec[-1] += self.raw_data[i][0] + self.raw_data[i][1]
-
-        if self.sig_line_usec[-1] == 0:
-            self.sig_line_usec.pop(-1)
-        # 最後のspace時間を引く
-        self.sig_line_usec[-1] -= self.raw_data[-1][1]
-
-        self.logger.debug('sig_str=%s',       self.sig_str)
-        self.logger.debug('sig_line_usec=%s', self.sig_line_usec)
-
-        # leaderを区切りとして、信号文字列を区切る
-        self.sig_line1 = self.sig_str.split()
-        self.logger.debug('sig_line1=%s', self.sig_line1)
+            ch = self.SIG_CH[sig]
+            self.sig_str += ch
+        self.logger.debug('sig_str=\'%s\'',       self.sig_str)
 
         # 信号文字列の中をさらに分割
         # 0,1の部分は分割しない
         self.sig_line = []
-        for i, l1 in enumerate(self.sig_line1):
-            for key in self.SIG_CH.keys():
-                if self.SIG_CH[key] in self.SIG_STR_01:
-                    continue
-                l1 = l1.replace(self.SIG_CH[key],
-                                ' ' + self.SIG_CH[key] + ' ')
-            #self.sig_line.append([l1.split(), self.sig_line_usec[i]])
-            self.sig_line.append(l1.split())
+        for key in self.SIG_CH.keys():
+            if self.SIG_CH[key] in self.SIG_STR_01:
+                continue
+            self.sig_str = self.sig_str.replace(self.SIG_CH[key],
+                                                ' ' + self.SIG_CH[key] + ' ')
+        self.sig_line = self.sig_str.split()
         self.logger.debug('sig_line=%s', self.sig_line)
 
-        # sig_line を16進に変換
-        self.sig_line_hex = []
+        # 2進数の桁数が4で割りきれる場合は16進数に変換
+        self.sig_line1 = []
         for sig in self.sig_line:
-            sig2 = []
-            for s in sig:
-                if s[0] in self.SIG_STR_01:
-                    sig2.append(self.bit2hex(s, 4))
+            if sig[0] in self.SIG_STR_01:
+                if len(sig) % 4 == 0:
+                    sig = self.bit2hex(sig, n=4)
+                    self.sig_line1.append(sig)
                 else:
-                    sig2.append(s)
-            #self.sig_line_hex.append([sig2, us])
-            self.sig_line_hex.append(sig2)
-        self.logger.debug('sig_line_hex=%s', self.sig_line_hex)
-
-        # linear ( flat list ) .. [[a, b], c] -> [a, b, c]
-        self.sig_linear = []
-        for s1 in self.sig_line_hex:
-            self.logger.debug('s1=%s', s1)
-            if type(s1) == list:
-                for s2 in s1:
-                    self.logger.debug('s2=%s', s2)
-                    self.sig_linear.append(s2)
+                    self.sig_line1.append(IrConfig.DATA_HEADER_BIN + sig)
             else:
-                self.sig_linear.append(s1)
-        self.logger.debug('sig_linear=%s', self.sig_linear)
+                self.sig_line1.append(sig)
+        self.logger.debug('sig_line1=%s', self.sig_line1)
+
+        # 2進数部分を「右から」4桁毎に区切る
+        self.sig_line2 = []
+        for s in self.sig_line1:
+            if s.startswith(IrConfig.DATA_HEADER_BIN):
+                s1 = s[len(IrConfig.DATA_HEADER_BIN):]
+                s1 = s1[::-1]
+                s2 = ''
+                for i in range(len(s1)):
+                    s2 += s1[i]
+                    if i % 4 == 3:
+                        s2 += ' '
+                s = s2[::-1]
+                if s[0] == ' ':
+                    s = s[1:]
+                s = IrConfig.DATA_HEADER_BIN + s
+            self.sig_line2.append(s)
+        self.logger.debug('sig_line2=%s', self.sig_line2)
+                    
+        # 再び文字列として連結
+        self.sig_str2 = ''
+        for s in self.sig_line2:
+            self.sig_str2 += s
+        self.logger.debug('sig_str2=%s', self.sig_str2)
 
         ### XXX
         # エラーチェック
@@ -377,18 +361,18 @@ class IrAnalyze:
             
         self.result = {
             "header": {
-                "name":     "dev_name",
-                "memo":     "memo",
-                "format":   self.sig_format_result,
-                "T":        self.T,       # us
-                "sig_tbl":  self.ch2sig,
-                "macro": {
-                    "P":    "",
-                    "Q":    ""
+                "name":    "dev_name",
+                "memo":    "memo",
+                "format":  self.sig_format_result,
+                "T":       self.T,       # us
+                "sig_tbl": self.ch2sig,
+                "macro":   {
+                    "[prefix]":   "",
+                    "[postfix]]": ""
                 }
             },
             "buttons": {
-                "button": self.sig_linear
+                "button1": self.sig_str2
             }
         }
 
@@ -409,37 +393,12 @@ class IrAnalyze:
         h = self.split_str(h[::-1], n)
         h = h[::-1]
         return h
-        
-
-    #
-    # display normalized data
-    #
-    def disp_norm(self, button_num):
-        if len(self.raw_data) == 0:
-            return
-        self.print('# normalized data')
-        self.print('\tname\tbutton%d' % button_num)
-        sig_str = self.sig_str.replace(' ', '')
-        n = 0
-        for i, ch in enumerate(sig_str):
-            n += 1
-            tp = self.n_list[i][0] * self.T
-            ts = self.n_list[i][1] * self.T
-            if i < len(sig_str) -1:
-                self.print('%5d %5d ' % (tp, ts), end='')
-            else:
-                self.print('%5d' % tp, end='')
-            if ch not in self.SIG_STR_01 or n % 4 == 0:
-                self.print()
-                n = 0
-        if n > 0:
-            self.print()
-        return
 
 
 ####
 class App:
-    TMP_JSON_FILE = '/tmp/IrAnalyze.json'
+    TMP_PULSE_SPACE_FILE = '/tmp/pulse_space.txt'
+    TMP_JSON_FILE        = '/tmp/ir.json'
 
     def __init__(self, pin, debug=False):
         self.debug = debug
@@ -458,14 +417,21 @@ class App:
             raw_data = self.rcvr.recv()
             if self.analyzer.analyze(raw_data):
                 r = self.analyzer.result
-                print('%s, %s' % (r['header']['format'],
-                                  ''.join(r['buttons']['button']).replace(' ','')))
+                print('%s,%s' % (r['header']['format'],
+                                 r['buttons']['button1']))
                 with open(self.TMP_JSON_FILE, 'w') as f:
-                    #json.dump(r, f, indent=2)
                     json.dump(r, f)
                     f.write('\n')
+                if len(r['header']['sig_tbl']['?']) > 0:
+                    print("\'?\': %s .. try again" %
+                          r['header']['sig_tbl']['?'])
+                    continue
+                if len(r['header']['sig_tbl']['=']) > 0:
+                    print("\'=\' in \'%s\' .. try again" %
+                          r['header']['sig_tbl']['='])
+                    continue
+                
                 break
-        
 
     def end(self):
         self.logger.debug('')

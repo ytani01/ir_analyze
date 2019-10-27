@@ -44,10 +44,8 @@ class IrRecv:
         self.pi.set_mode(self.pin, pigpio.INPUT)
         self.pi.set_glitch_filter(self.pin, self.GLITCH_USEC)
         
-        self.cb = self.pi.callback(self.pin, pigpio.EITHER_EDGE, self._cb)
-
         self.receiving = False
-        self.signal = []
+        self.raw_data = []
 
     def set_watchdog(self, ms):
         self.logger.debug('ms=%d', ms)
@@ -65,10 +63,11 @@ class IrRecv:
         self.tick = tick
         
         if val == pigpio.TIMEOUT:
-            if len(self.signal) > 0:
-                if len(self.signal[-1]) == 1:
-                    self.signal[-1].append(interval)
             self.set_watchdog(self.WATCHDOG_CANCEL)
+            
+            if len(self.raw_data) > 0:
+                if len(self.raw_data[-1]) == 1:
+                    self.raw_data[-1].append(interval)
             self.receiving = False
             self.logger.debug ('end   %d', interval)
             return
@@ -79,23 +78,29 @@ class IrRecv:
         self.set_watchdog(self.WATCHDOG_MSEC)
 
         if val == self.VAL_ON:
-            if self.signal != []:
-                self.signal[-1].append(interval)
+            if self.raw_data != []:
+                self.raw_data[-1].append(interval)
         else:
-            self.signal.append([interval])
+            self.raw_data.append([interval])
             
         self.logger.debug('%s %d' % (self.VAL_STR[val], interval))
 
     def recv(self):
         self.logger.debug('')
 
-        self.signal   = []
+        self.raw_data   = []
         self.receiving = True
 
+        self.cb = self.pi.callback(self.pin, pigpio.EITHER_EDGE, self._cb)
+
+        self.logger.info('Ready')
         while self.receiving:
             time.sleep(0.1)
 
-        return self.signal
+        self.cb.cancel()
+        self.logger.info('Done')
+
+        return self.raw_data
 
     def end(self):
         self.logger.debug('')
@@ -103,12 +108,30 @@ class IrRecv:
         self.pi.stop()
         self.logger.debug('done')
         
-    def print_signal(self, signal):
-        self.logger.debug('signal:%s', signal)
+    def raw2pulse_space(self, raw_data=None):
+        self.logger.debug('row_data=%s', raw_data)
+        
+        if raw_data is None:
+            raw_data = self.raw_data
+            self.logger.debug('raw_data=%s', raw_data)
 
-        for (p, s) in self.signal:
-            print('%s %d' % (self.VAL_STR[0], p))
-            print('%s %d' % (self.VAL_STR[1], s))
+        pulse_space = ''
+        
+        for (p, s) in raw_data:
+            pulse_space += '%s %d\n' %(self.VAL_STR[0], p)
+            pulse_space += '%s %d\n' %(self.VAL_STR[1], s)
+
+        return pulse_space
+            
+
+    def print_pulse_space(self, raw_data=None):
+        self.logger.debug('raw_data=%s', raw_data)
+
+        if raw_data is None:
+            raw_data = self.raw_data
+            self.logger.debug('raw_data=%s', raw_data)
+
+        print(self.raw2pulse_space(raw_data))
         
 
     def main(self):
@@ -116,10 +139,10 @@ class IrRecv:
 
         while True:
             print('# -')
-            signal = self.recv()
-            self.print_signal(signal)
+            raw_data = self.recv()
+            self.print_pulse_space(raw_data)
             print('# /')
-            time.sleep(1)
+            time.sleep(.5)
 
 #####
 import click
