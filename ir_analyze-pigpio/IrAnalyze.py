@@ -120,7 +120,8 @@ class IrAnalyze:
             self.logger.debug('raw_data=%s', self.raw_data)
 
         if len(raw_data) < self.RAW_DATA_LEN_MIN:
-            self.logger.warning('raw_data is too short ... ignored')
+            self.logger.warning('raw_data is too short:%s ... ignored',
+                                raw_data)
             return False
 
         # pulse + sleep の値のリスト
