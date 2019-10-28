@@ -21,8 +21,7 @@ class IrConfData:
     JSON format:
     {
       "header": {
-        "name": "dev_name",
-        "memo": "memo_str",
+        "dev_name": "dev_name",
         "T":    T(us),
         "sym_tbl": {
           "-": [n, n], # leader
@@ -50,17 +49,17 @@ class IrConfData:
       }
     }
     '''
-    HEADER_BIN = '(b)'
+    HEADER_BIN = '(0b)'
 
     def __init__(self, conf_data=None, debug=False):
         self.debug = debug
         self.logger = my_logger.get_logger(__class__.__name__, self.debug)
-        self.logger.debug("confdata=%s", conf_data)
+        self.logger.debug('confdata=%s', conf_data)
 
         if conf_data is None:
             self.data = [{
                 'header': {
-                    'name': ['dev_name1', 'dev_name2'],
+                    'dev_name': ['dev_name1', 'dev_name2'],
                     'T':    0,
                     'sym_tbl': {
                         '-': [], # leader
@@ -146,8 +145,10 @@ class IrConfFile:
             self.logger.warning('no file_name')
             return None
 
+        self.logger.debug('file_name=%s', file_name)
+
         try:
-            with open(self.file_name, 'r') as f:
+            with open(file_name, 'r') as f:
                 data = json.load(f)
                 self.logger.debug('data=%s', json.dumps(data))
         except json.JSONDecodeError as e:
@@ -183,10 +184,19 @@ class App:
         self.logger.debug('file_name=%s', file_name)
 
         self.conf = IrConfFile(debug=self.debug)
-        self.conf.load(file_name)
+        data = self.conf.load(file_name)
 
-        print(self.conf.data)
-        print(self.conf.get_dev_name(self.conf.data[0]))
+        print('===')
+        print(data)
+        print('---')
+
+        for d in data:
+            for n in d['header']['name']:
+                print('[' + n + ']')
+            for b in d['buttons']:
+                print('%s: %s' % (b, d['buttons'][b]))
+
+        print('===')
 
     def end(self):
         self.logger.debug('')

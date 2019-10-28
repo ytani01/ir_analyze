@@ -79,7 +79,7 @@ class IrRecv:
 
         self.set_watchdog(self.WATCHDOG_MSEC)
         
-    def recv(self):
+    def recv(self, verbose=False):
         self.logger.debug('')
 
         self.raw_data   = []
@@ -90,13 +90,16 @@ class IrRecv:
 
         self.cb = self.pi.callback(self.pin, pigpio.EITHER_EDGE, self._cb)
 
-        print('Ready')
+        if verbose:
+            print('Ready')
         while self.receiving:
             time.sleep(0.1)
 
         self.cb.cancel()
         self.th_worker.join()
-        print('Done')
+
+        if verbose:
+            print('Done')
 
         return self.raw_data
 
@@ -134,7 +137,7 @@ class IrRecv:
             raw_data = self.raw_data
             self.logger.debug('raw_data=%s', raw_data)
 
-        print(self.raw2pulse_space(raw_data))
+        print(self.raw2pulse_space(raw_data), end='')
 
     def worker(self):
         '''
@@ -220,7 +223,7 @@ class App:
 
         while True:
             print('# -')
-            raw_data = self.r.recv()
+            raw_data = self.r.recv(verbose=True)
             self.r.print_pulse_space(raw_data)
             print('# /')
             time.sleep(.5)

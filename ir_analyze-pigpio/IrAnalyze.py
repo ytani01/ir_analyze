@@ -359,18 +359,18 @@ class IrAnalyze:
             self.sig_format_result = self.sig_format
             
         self.result = {
-            "header": {
-                "name":    ["dev_name"],
-                "format":  self.sig_format_result,
-                "T":       self.T,       # us
-                "sym_tbl": self.ch2sig,
-                "macro":   {
-                    "[prefix]":   "",
-                    "[postfix]]": ""
+            'header': {
+                'dev_name':    ['dev_name'],
+                'format':  self.sig_format_result,
+                'T':       self.T,       # us
+                'sym_tbl': self.ch2sig,
+                'macro':   {
+                    '[prefix]':   '',
+                    '[postfix]]': ''
                 }
             },
-            "buttons": {
-                "button1": self.sig_str2
+            'buttons': {
+                'button1': self.sig_str2
             }
         }
 
@@ -380,10 +380,10 @@ class IrAnalyze:
         '''
         bit pattern strings to hex strings
         '''
-        self.logger.debug("b=%s, n=%d, lsb_first=%s", b, n, lsb_first)
+        self.logger.debug('b=%s, n=%d, lsb_first=%s', b, n, lsb_first)
 
         if b[0] not in self.SIG_STR_01:
-            self.logger.warning("%s is not bit pattern", b)
+            self.logger.warning('%s is not bit pattern', b)
             return b
 
         if lsb_first:
@@ -392,7 +392,7 @@ class IrAnalyze:
         h = ('0' * hex_len + '%X' % int(b, 2))[-hex_len:]
         h = self.split_str(h[::-1], n)
         h = h[::-1]
-        self.logger.debug("h=%s", h)
+        self.logger.debug('h=%s', h)
         return h
 
 ####
@@ -439,11 +439,11 @@ class App:
                     f.write('\n')
 
                 if len(result['header']['sym_tbl']['?']) > 0:
-                    print("\'?\': %s .. try again" %
+                    print('\'?\': %s .. try again' %
                           result['header']['sym_tbl']['?'])
                     continue
                 if len(result['header']['sym_tbl']['=']) > 0:
-                    print("\'=\' in \'%s\' .. try again" %
+                    print('\'=\' in \'%s\' .. try again' %
                           result['header']['sym_tbl']['='])
                     continue
 
@@ -453,7 +453,7 @@ class App:
         self.logger.debug('')
 
         while True:
-            raw_data = self.receiver.recv()
+            raw_data = self.receiver.recv(verbose=True)
             self.logger.debug('raw_data=%s', raw_data)
             self.msgq.put(raw_data)
                 

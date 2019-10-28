@@ -485,7 +485,7 @@ class IrSend:
 
         bi_tv_light = {
             "header": {
-                "name": "dev_name",
+                "dev_name": "dev_name",
                 "memo": "memo",
                 "format": "NEC",
                 "T": 565.625,
