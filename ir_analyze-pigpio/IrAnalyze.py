@@ -196,6 +196,7 @@ class IrAnalyze:
                 self.sig2n['one'].append(p)
                 self.sig_format2.append('NEC?')
                 self.sig_format2.append('AEHA?')
+                self.sig_format2.append('BOSE?')
                 continue
             # leader
             if p == [4, 1]:
@@ -213,6 +214,10 @@ class IrAnalyze:
             if p == [3, 1]:
                 self.sig2n['leader?'].append(p)
                 self.sig_format.append('DYSON')
+                continue
+            if p == [2, 3]:
+                self.sig2n['leader?'].append(p)
+                self.sig_format.append('BOSE')
                 continue
             # repeat
             if n1 in [15, 16, 17] and n2 in [3, 4, 5]:
