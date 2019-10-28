@@ -347,8 +347,10 @@ class IrAnalyze:
         if len(self.sig_format) == 0:
             if len(self.sig_format2) == 0:
                 self.sig_format_result = '?'
-            if len(self.sig_format2) == 1:
+
+            elif len(self.sig_format2) == 1:
                 self.sig_format_result = self.sig_format2[0]
+
             else:
                 self.sig_format_result = self.sig_format2
                 
@@ -434,7 +436,7 @@ class App:
                 print('%s,%s' % (result['header']['format'],
                                  result['buttons']['button1']))
 
-                with open(self.TMP_JSON_FILE, 'w') as f:
+                with open(self.TMP_JSON_FILE, 'a') as f:
                     json.dump(result, f)
                     f.write('\n')
 
