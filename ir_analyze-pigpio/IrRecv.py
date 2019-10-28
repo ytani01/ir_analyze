@@ -23,7 +23,7 @@ DEF_PIN = 27
 
 #####
 class IrRecv:
-    GLITCH_USEC     = 300   # usec
+    GLITCH_USEC     = 100   # usec
     LEADER_MIN_USEC = 1000
 
     INTERVAL_MAX    = 999999 # usec
@@ -56,7 +56,6 @@ class IrRecv:
 
     def set_watchdog(self, ms):
         self.logger.debug('ms=%d', ms)
-
         self.pi.set_watchdog(self.pin, ms)
 
     def _cb(self, pin, val, tick):
@@ -71,10 +70,11 @@ class IrRecv:
         if val == pigpio.TIMEOUT:
             self.set_watchdog(self.WATCHDOG_CANCEL)
             self.cb.cancel()
+            self.receiving = False
+
             self.msgq.put(self.MSG_END)
 
             self.logger.debug('timeout!')
-            self.receiving = False
             return
 
         self.set_watchdog(self.WATCHDOG_MSEC)
@@ -197,6 +197,7 @@ class IrRecv:
 
         else: # val == IrRecv.VAL_OFF
             if self.raw_data == [] and interval < self.LEADER_MIN_USEC:
+                self.set_watchdog(self.WATCHDOG_CANCEL)
                 self.logger.warning('%d: leader is too short .. ignored',
                                     interval)
                 return
