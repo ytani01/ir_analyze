@@ -25,6 +25,7 @@ class IrConfig:
     {
       "header": {
         "dev_name": ["dev_name1", "dev_name2"],
+        "format:": "{AEHA|NEC|AEHA|DYSON}"      # optional
         "T":    t,     # us
         "sym_tbl": {
           "-": [n, n], # leader
@@ -36,18 +37,14 @@ class IrConfig:
           "?": [n, n]  # ???
         },
         "macro": {
-          "[prefix]": "(code)",  # prefix, suffix or else
-          :
-          "[suffix]": "(code)"  # prefix, suffix or else
+          "[prefix]": "- {hex|(0b)bin} ",
+          "[suffix]": "{hex|bin} /",
+          "[repeat]": "*/"
         }
-        # optional
-        "format:": "AEHA"
       }
       "buttons": {
-        "button1": "-[prefix]{hex|(0b)bin}[postfi]/*/*/",
-        "button2": "- [prefix] {hex|(0b)bin} [suffix] /",
-        :
-        "button_n": ["-", "[prefix]", "{hex|(0b)bin}", "[suffix]", "/", "*/"]
+        "button1": "[prefix] {hex|bin} [suffix] [repeat] [repeat]",
+        "button2": ["[prefix] {hex|bin} [suffix] [repeat] [repeat]", n]
       }
     }
     '''
@@ -76,6 +73,18 @@ class IrConfig:
         if load_all:
             self.load_all()
             
+    def get_pulse_space(self, dev_name, button_name):
+        self.logger.debug('dev_name=%s, button_name=%s', dev_name, button_name)
+
+        dev_data = self.get_dev_data(dev_name)
+        try:
+            button_data = dev_data['buttons'][button_name]
+        except KeyError:
+            self.logger.warning('no such button: %s,%s', dev_name, button_name)
+            return []
+
+        ### XXX
+
     def get_button_data(self, dev_name, button_name):
         self.logger.debug('dev_name=%s, button_name=%s', dev_name, button_name)
 

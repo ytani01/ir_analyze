@@ -288,14 +288,15 @@ class IrSend:
         if type(sig_list) == str:
             sig_str = sig_list
         elif type(sig_list) == list:
-            for s in sig_list:
-                self.logger.debug("s=%s", s)
-                sig_str += s
-        else:
+            if len(sig_list) == 2:
+                (s, n) = sig_list
+                for i in range(n):
+                    sig_str += s
+        self.logger.debug("sig_str=%s", sig_str)
+
+        if sig_str == '':
             self.logger.error("invalid sig_list: %s", sig_list)
             return []
-
-        self.logger.debug("sig_str=%s", sig_str)
 
         #
         # マクロ(prefix, suffix etc.)展開
@@ -384,6 +385,9 @@ class IrSend:
         if self.irconf is None:
             self.irconf = IrConfig(load_all=True, debug=self.debug)
 
+        # XXX
+        # pulse_space = self.irconf.get_pulse_space(dev_name, button_name)
+        # self.send_ir_pulse_space(pulse_space)
         conf_data = self.irconf.get_dev_data(dev_name)
         self.send_ir(conf_data, button_name)
         
