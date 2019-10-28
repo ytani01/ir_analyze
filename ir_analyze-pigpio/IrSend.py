@@ -655,6 +655,26 @@ class IrSend:
 
         #self.send_ir(bi_lg_tv, "power")
         
+#####
+class App:
+    def __init__(self, conf_file, dev_name, button_name, pin, debug=False):
+        self.debug = debug
+        self.logger = my_logger.get_logger(__class__.__name__, self.debug)
+        self.logger.debug('conf_file=%s, dev_name=%s, button_name=%s, pin=%d',
+                          conf_file, dev_name, button_name, pin)
+
+        self.conf_file   = conf_file
+        self.dev_name    = dev_name
+        self.button_name = button_name
+        self.pin         = pin
+
+        self.conf = IrConfFile(self.conf_file, debug=self.debug)
+        
+    def main(self):
+        self.logger.debug('')
+
+    def end(self):
+        self.logger.debug('')
 
 
 #####
@@ -662,16 +682,22 @@ import click
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(context_settings=CONTEXT_SETTINGS,
                help='IR signal transmitter')
-@click.argument('pin', type=int, default=DEF_PIN)
+@click.argument('dev_name', type=str)
+@click.argument('button_name', type=str)
+@click.option('--conf_file', '--conf', '-c', 'conf_file', default='ir.conf',
+              help='config file name')
+@click.option('--pin', '-p', 'pin', type=int, default=DEF_PIN,
+              help='pin number')
 @click.option('--debug', '-d', 'debug', is_flag=True, default=False,
               help='debug flag')
-def main(pin, debug):
+def main(conf_file, dev_name, button_name, pin, debug):
     logger = my_logger.get_logger(__name__, debug)
-    logger.debug('pin: %d', pin)
+    logger.debug('conf_file=%s, dev_name=%s, button_name=%s, pin=%d',
+                 conf_file, dev_name, button_name, pin)
 
-    app = IrSend(pin, debug)
+    app = App(conf_file, dev_name, button_name, pin, debug=debug)
     try:
-        app.sample()
+        app.main()
     finally:
         logger.debug('finally')
         app.end()

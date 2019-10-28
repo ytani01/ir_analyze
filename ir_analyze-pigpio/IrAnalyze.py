@@ -121,9 +121,9 @@ class IrAnalyze:
             self.logger.debug('raw_data=%s', self.raw_data)
 
         if len(raw_data) < self.RAW_DATA_LEN_MIN:
-            self.logger.warning('raw_data is too short:%s ... ignored',
+            self.logger.warning('too short:%s .. ignored',
                                 raw_data)
-            return False
+            return None
 
         # pulse + sleep の値のリスト
         self.sum_list = [(d1 + d2) for d1, d2 in self.raw_data]
@@ -252,7 +252,6 @@ class IrAnalyze:
                         self.sig2n[key + '?'].remove(sig)
         self.logger.debug('sig2n=%s', self.sig2n)
 
-
         self.ch2sig = {}
         for key in self.SIG_CH.keys():
             self.ch2sig[self.SIG_CH[key]] = self.sig2n[key]
@@ -361,8 +360,7 @@ class IrAnalyze:
             
         self.result = {
             "header": {
-                "name":    "dev_name",
-                "memo":    "memo",
+                "name":    ["dev_name"],
                 "format":  self.sig_format_result,
                 "T":       self.T,       # us
                 "sym_tbl": self.ch2sig,
@@ -376,14 +374,16 @@ class IrAnalyze:
             }
         }
 
-        return True
+        return self.result
 
-          
     def bit2hex(self, b, n=2, lsb_first=False):
         '''
         bit pattern strings to hex strings
         '''
+        self.logger.debug("b=%s, n=%d, lsb_first=%s", b, n, lsb_first)
+
         if b[0] not in self.SIG_STR_01:
+            self.logger.warning("%s is not bit pattern", b)
             return b
 
         if lsb_first:
@@ -392,13 +392,18 @@ class IrAnalyze:
         h = ('0' * hex_len + '%X' % int(b, 2))[-hex_len:]
         h = self.split_str(h[::-1], n)
         h = h[::-1]
+        self.logger.debug("h=%s", h)
         return h
 
-
 ####
+import threading
+import queue
+
 class App:
     TMP_PULSE_SPACE_FILE = '/tmp/pulse_space.txt'
     TMP_JSON_FILE        = '/tmp/ir.json'
+
+    MSG_END              = ''
 
     def __init__(self, pin, debug=False):
         self.debug = debug
@@ -407,34 +412,62 @@ class App:
 
         self.pin = pin
 
-        self.rcvr     = IrRecv(self.pin, debug=self.debug)
         self.analyzer = IrAnalyze(debug=self.debug)
+        self.receiver = IrRecv(self.pin, debug=self.debug)
+
+        self.msgq      = queue.Queue()
+        self.th_worker = threading.Thread(target=self.worker)
+        self.th_worker.start()
+
+    def worker(self):
+        self.logger.debug('')
+
+        while True:
+            msg = self.msgq.get()
+            self.logger.debug('msg=%s', msg)
+            if msg == self.MSG_END:
+                break;
+
+            result = self.analyzer.analyze(msg)
+            self.logger.debug('result=%s', result)
+            if result is not None:
+                print('%s,%s' % (result['header']['format'],
+                                 result['buttons']['button1']))
+
+                with open(self.TMP_JSON_FILE, 'w') as f:
+                    json.dump(result, f)
+                    f.write('\n')
+
+                if len(result['header']['sym_tbl']['?']) > 0:
+                    print("\'?\': %s .. try again" %
+                          result['header']['sym_tbl']['?'])
+                    continue
+                if len(result['header']['sym_tbl']['=']) > 0:
+                    print("\'=\' in \'%s\' .. try again" %
+                          result['header']['sym_tbl']['='])
+                    continue
+
+        self.logger.debug('done')
 
     def main(self):
         self.logger.debug('')
 
         while True:
-            raw_data = self.rcvr.recv()
-            if self.analyzer.analyze(raw_data):
-                r = self.analyzer.result
-                print('%s,%s' % (r['header']['format'],
-                                 r['buttons']['button1']))
-                with open(self.TMP_JSON_FILE, 'w') as f:
-                    json.dump(r, f)
-                    f.write('\n')
-                if len(r['header']['sym_tbl']['?']) > 0:
-                    print("\'?\': %s .. try again" %
-                          r['header']['sym_tbl']['?'])
-                    continue
-                if len(r['header']['sym_tbl']['=']) > 0:
-                    print("\'=\' in \'%s\' .. try again" %
-                          r['header']['sym_tbl']['='])
-                    continue
+            raw_data = self.receiver.recv()
+            self.logger.debug('raw_data=%s', raw_data)
+            self.msgq.put(raw_data)
                 
-                break
-
     def end(self):
         self.logger.debug('')
+
+        if self.th_worker.is_alive():
+            self.msgq.put(self.MSG_END)
+            self.logger.debug('join()')
+            self.th_worker.join()
+
+        self.receiver.end()
+        self.logger.debug('done')
+
     
 #### main
 import click

@@ -58,48 +58,48 @@ class IrConfData:
         self.logger.debug("confdata=%s", conf_data)
 
         if conf_data is None:
-            self.data = {
-                "header": {
-                    "name": "(template)",
-                    "memo": "",
-                    "T":    0,
-                    "sym_tbl": {
-                        "-": [], # leader
-                        "=": [], # leader?
-                        "0": [], # 0
-                        "1": [], # 1
-                        "/": [], # trailer
-                        "*": [], # repeat
-                        "?": []  # ???
+            self.data = [{
+                'header': {
+                    'name': ['dev_name1', 'dev_name2'],
+                    'T':    0,
+                    'sym_tbl': {
+                        '-': [], # leader
+                        '=': [], # leader?
+                        '0': [], # 0
+                        '1': [], # 1
+                        '/': [], # trailer
+                        '*': [], # repeat
+                        '?': []  # ???
                     },
-                    "macro": {
-                        "[prefix]":  "",
-                        "[postfix]": ""
+                    'macro': {
+                        '[prefix]':  '',
+                        '[postfix]': ''
                     },
                     # optional
-                    "format:": ""
+                    'format:': ''
                 },
-                "buttons": {
-                    "button1": ""
+                'buttons': {
+                    'button1': '',
+                    'button2': ''
                 }
-            }
+            }]
         else:
             self.data = conf_data
-            
 
     def get_dev_name(self, conf_data=None):
-        self.logger.debug("conf_data=%s", conf_data)
+        self.logger.debug('conf_data=%s', conf_data)
         if conf_data is None:
             conf_data = self.data
-            self.logger.debug("conf_data=%s", conf_data)
+            self.logger.debug('conf_data=%s', conf_data)
 
         return conf_data['dev_name']
 
     def get_button(self, button_name='', conf_data=None):
-        self.logger.debug("button_name=%s, conf_data=%s", button_name, conf_data)
+        self.logger.debug('button_name=%s, conf_data=%s', button_name,
+                          conf_data)
         if conf_data is None:
             conf_data = self.data
-            self.logger.debug("conf_data=%s", conf_data)
+            self.logger.debug('conf_data=%s', conf_data)
 
         if button_name == '':
             return conf_data['buttons']
@@ -107,10 +107,11 @@ class IrConfData:
         return conf_data['buttons'][button_name]
 
     def get_macro(self, macro_name='', conf_data=None):
-        self.logger.debug("button_name=%s, conf_data=%s", button_name, conf_data)
+        self.logger.debug('button_name=%s, conf_data=%s',
+                          button_name, conf_data)
         if conf_data is None:
             conf_data = self.data
-            self.logger.debug("conf_data=%s", conf_data)
+            self.logger.debug('conf_data=%s', conf_data)
 
         if macro_name == '':
             return conf_data['macro']
@@ -119,11 +120,11 @@ class IrConfData:
         
     
 class IrConfFile:
-    DEF_CONF_DIR      = "/etc/ir.conf.d"
+    DEF_CONF_DIR      = '/etc/ir.conf.d'
     DEF_CONF_PATH     = ['.', '@home', DEF_CONF_DIR]
-    DEF_CONF_FILENAME = "ir.conf"
+    DEF_CONF_FILENAME = 'ir.conf'
 
-    def __init__(self, file_name='', debug=False):
+    def __init__(self, file_name=None, debug=False):
         self.debug = debug
         self.logger = my_logger.get_logger(__class__.__name__, self.debug)
         self.logger.debug('file_name=%s', file_name)
@@ -132,23 +133,25 @@ class IrConfFile:
 
         self.data = []
 
+        if self.file_name is not None:
+            self.load()
 
-    def load(self, file_name=''):
-        self.logger.debug('')
+    def load(self, file_name=None):
+        self.logger.debug('file_name=%s', file_name)
 
-        if file_name != '':
-            self.file_name = file_name
-        if file_name == '':
+        if file_name is None:
+            file_name = self.file_name
+
+        if file_name is None:
             self.logger.warning('no file_name')
             return None
 
         try:
             with open(self.file_name, 'r') as f:
                 data = json.load(f)
-                data_str = json.dumps(data, indent=2)
-                self.logger.debug('data=%s', data_str)
+                self.logger.debug('data=%s', json.dumps(data))
         except json.JSONDecodeError as e:
-            self.logger.error("%s, %s", type(e), e)
+            self.logger.error('%s, %s', type(e), e)
             return None
 
         if type(data) == list:
@@ -157,17 +160,14 @@ class IrConfFile:
         else:
             self.data.append(data)
                 
-        return data
+        return self.data
         
 
-    def save(self, file_name=''):
+    def save(self, file_name=None):
         self.logger.debug('')
 
-        if file_name != '':
-            self.file_name = file_name
-        if file_name == '':
-            self.logger.warning('no file_name')
-            return None
+        if file_name is None:
+            file_name = self.file_name
             
         
 #####
@@ -182,10 +182,11 @@ class App:
     def main(self, file_name=''):
         self.logger.debug('file_name=%s', file_name)
 
-        self.conf = IrConfig(debug=self.debug)
+        self.conf = IrConfFile(debug=self.debug)
         self.conf.load(file_name)
 
         print(self.conf.data)
+        print(self.conf.get_dev_name(self.conf.data[0]))
 
     def end(self):
         self.logger.debug('')
