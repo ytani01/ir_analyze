@@ -10,19 +10,22 @@ __date__   = '2019'
 
 import os
 import json
+from pathlib import Path
 
 #####
 from MyLogger import MyLogger
 my_logger = MyLogger(__file__)
 
 #####
-class IrConfData:
+class IrConfig:
     '''
-    JSON format:
+    data      := [{data_ent1}, {data_ent2}, ..}
+    data_ent  := {'file': 'file_name1', 'data': 'conf_data1'}
+    conf_data := 
     {
       "header": {
-        "dev_name": "dev_name",
-        "T":    T(us),
+        "dev_name": ["dev_name1", "dev_name2"],
+        "T":    t,     # us
         "sym_tbl": {
           "-": [n, n], # leader
           "=": [n, n], # leader?
@@ -33,118 +36,121 @@ class IrConfData:
           "?": [n, n]  # ???
         },
         "macro": {
-          "[prefix]": "(code)",  # prefix, postfix or else
-          "[postfix]": "(code)"  # prefix, postfix or else
-          "[postfix]": "(code)"  # prefix, postfix or else
+          "[prefix]": "(code)",  # prefix, suffix or else
           :
+          "[suffix]": "(code)"  # prefix, suffix or else
         }
         # optional
         "format:": "AEHA"
       }
       "buttons": {
-        "button1": "-P(hex)Q/*/*/",
-        "button2": "- P (hex) /",
-        "button3": ["-", "(code)", "[postfix]", "/", "*/", "*/"]
+        "button1": "-[prefix]{hex|(0b)bin}[postfi]/*/*/",
+        "button2": "- [prefix] {hex|(0b)bin} [suffix] /",
         :
+        "button_n": ["-", "[prefix]", "{hex|(0b)bin}", "[suffix]", "/", "*/"]
       }
     }
     '''
-    HEADER_BIN = '(0b)'
+    HEADER_BIN   = '(0b)'
+    CONF_SUFFIX  = '.irconf'
+    DEF_CONF_DIR = ['.',
+                    str(Path.home()) + '/.irconf.d',
+                    '/etc/irconf.d']
 
-    def __init__(self, conf_data=None, debug=False):
+    def __init__(self, conf_dir=None, load_all=False, debug=False):
         self.debug = debug
         self.logger = my_logger.get_logger(__class__.__name__, self.debug)
-        self.logger.debug('confdata=%s', conf_data)
+        self.logger.debug('conf_dir=%s', conf_dir)
 
-        if conf_data is None:
-            self.data = [{
-                'header': {
-                    'dev_name': ['dev_name1', 'dev_name2'],
-                    'T':    0,
-                    'sym_tbl': {
-                        '-': [], # leader
-                        '=': [], # leader?
-                        '0': [], # 0
-                        '1': [], # 1
-                        '/': [], # trailer
-                        '*': [], # repeat
-                        '?': []  # ???
-                    },
-                    'macro': {
-                        '[prefix]':  '',
-                        '[postfix]': ''
-                    },
-                    # optional
-                    'format:': ''
-                },
-                'buttons': {
-                    'button1': '',
-                    'button2': ''
-                }
-            }]
+        if conf_dir is None:
+            self.conf_dir = self.DEF_CONF_DIR
         else:
-            self.data = conf_data
-
-    def get_dev_name(self, conf_data=None):
-        self.logger.debug('conf_data=%s', conf_data)
-        if conf_data is None:
-            conf_data = self.data
-            self.logger.debug('conf_data=%s', conf_data)
-
-        return conf_data['dev_name']
-
-    def get_button(self, button_name='', conf_data=None):
-        self.logger.debug('button_name=%s, conf_data=%s', button_name,
-                          conf_data)
-        if conf_data is None:
-            conf_data = self.data
-            self.logger.debug('conf_data=%s', conf_data)
-
-        if button_name == '':
-            return conf_data['buttons']
-
-        return conf_data['buttons'][button_name]
-
-    def get_macro(self, macro_name='', conf_data=None):
-        self.logger.debug('button_name=%s, conf_data=%s',
-                          button_name, conf_data)
-        if conf_data is None:
-            conf_data = self.data
-            self.logger.debug('conf_data=%s', conf_data)
-
-        if macro_name == '':
-            return conf_data['macro']
-
-        return conf_data['macro'][macro_name]
-        
-    
-class IrConfFile:
-    DEF_CONF_DIR      = '/etc/ir.conf.d'
-    DEF_CONF_PATH     = ['.', '@home', DEF_CONF_DIR]
-    DEF_CONF_FILENAME = 'ir.conf'
-
-    def __init__(self, file_name=None, debug=False):
-        self.debug = debug
-        self.logger = my_logger.get_logger(__class__.__name__, self.debug)
-        self.logger.debug('file_name=%s', file_name)
-
-        self.file_name = file_name
+            if type(conf_dir) == list:
+                self.conf_dir = conf_dir
+            else:
+                self.conf_dir = [conf_dir]
+        self.logger.debug('conf_dir=%s', self.conf_dir)
 
         self.data = []
 
-        if self.file_name is not None:
-            self.load()
+        if load_all:
+            self.load_all()
+            
+    def get_button_data(self, dev_name, button_name):
+        self.logger.debug('dev_name=%s, button_name=%s', dev_name, button_name)
 
-    def load(self, file_name=None):
-        self.logger.debug('file_name=%s', file_name)
-
-        if file_name is None:
-            file_name = self.file_name
-
-        if file_name is None:
-            self.logger.warning('no file_name')
+        buttons = self.get_buttons(dev_name)
+        try:
+            return buttons[button_name]
+        except KeyError:
             return None
 
+    def get_buttons(self, dev_name):
+        self.logger.debug('dev_name=%s', dev_name)
+
+        data_ent = self.get_dev(dev_name)
+        self.logger.debug('data_ent=%s', data_ent)
+
+        if data_ent is None:
+            self.logger.waring('%s: no such device', dev_name)
+            return []
+
+        # found
+        try:
+            buttons = data_ent['data']['buttons']
+        except KeyError:
+            self.logger.waring('no button !?')
+            return []
+
+        return buttons
+            
+    def get_dev_data(self, dev_name):
+        self.logger.debug('dev_name=%s', dev_name)
+
+        data_ent = self.get_dev(dev_name)
+        if data_ent is None:
+            return None
+
+        return data_ent['data']
+
+    def get_dev(self, dev_name):
+        self.logger.debug('dev_name=%s', dev_name)
+
+        for d_ent in self.data:
+            try:
+                d_nlist = d_ent['data']['header']['dev_name']
+                self.logger.debug('d_nlist=%s', d_nlist)
+            except KeyError:
+                self.logger.warning('KeyError .. ignored: %s', d_ent)
+                continue
+                
+            if type(d_nlist) != list:
+                d_nlist = [d_nlist]
+                self.logger.debug('d_nlist=%s', d_nlist)
+            for d_name in  d_nlist:
+                self.logger.debug('d_name=%s', d_name)
+
+                if d_name == dev_name:
+                    self.logger.debug('%s: found', dev_name)
+                    return d_ent
+
+        self.logger.debug('%s: not found', dev_name)
+        return None
+
+    def load_all(self):
+        self.logger.debug('')
+
+        files = []
+        for d in self.conf_dir:
+            self.logger.debug('d=%s', d)
+            for f in list(Path(d).glob('*' + self.CONF_SUFFIX)):
+                files.append(str(f))
+        self.logger.debug('files=%s', files)
+
+        for f in files:
+            self.load(f)
+
+    def load(self, file_name):
         self.logger.debug('file_name=%s', file_name)
 
         try:
@@ -152,24 +158,26 @@ class IrConfFile:
                 data = json.load(f)
                 self.logger.debug('data=%s', json.dumps(data))
         except json.JSONDecodeError as e:
+            self.logger.error('%s: %s, %s', file_name, type(e), e)
+            return None
+        except Exception as e:
             self.logger.error('%s, %s', type(e), e)
             return None
 
         if type(data) == list:
             for d in data:
-                self.data.append(d)
+                data_ent = {'file': file_name, 'data': d}
+                self.data.append(data_ent)
         else:
-            self.data.append(data)
+            data_ent = {'file': file_name, 'data': data}
+            self.data.append(data_ent)
+        self.logger.debug('data=%s', self.data)
                 
         return self.data
-        
 
     def save(self, file_name=None):
-        self.logger.debug('')
+        self.logger.debug('file_name=%s', file_name)
 
-        if file_name is None:
-            file_name = self.file_name
-            
         
 #####
 class App:
@@ -180,23 +188,31 @@ class App:
         self.logger = my_logger.get_logger(__class__.__name__, debug)
         self.logger.debug('')
 
-    def main(self, file_name=''):
-        self.logger.debug('file_name=%s', file_name)
+    def main(self, dev_name, button_name, conf_file):
+        self.logger.debug('dev_name=%s, button_name=%s, conf_file=%s',
+                          dev_name, button_name, conf_file)
 
-        self.conf = IrConfFile(debug=self.debug)
-        data = self.conf.load(file_name)
+        irconf = IrConfig(debug=self.debug)
+        print(irconf.conf_dir)
 
-        print('===')
-        print(data)
-        print('---')
+        if len(conf_file) == 0:
+            irconf.load_all()
+        else:
+            irconf.load(conf_file)
 
-        for d in data:
-            for n in d['header']['name']:
-                print('[' + n + ']')
-            for b in d['buttons']:
-                print('%s: %s' % (b, d['buttons'][b]))
+        conf_data_ent = irconf.get_dev(dev_name)
+        print('conf_data_ent=%s' % conf_data_ent)
 
-        print('===')
+        if conf_data_ent is not None:
+            conf_data = conf_data_ent['data']
+            print('conf_data=%s' % conf_data)
+            buttons = irconf.get_buttons(dev_name)
+            for b in buttons:
+                print('%s: %s' % (b, buttons[b]))
+
+            if button_name != '':
+                button_data = irconf.get_button_data(dev_name, button_name)
+                print('%s,%s: %s' % (dev_name, button_name, button_data))
 
     def end(self):
         self.logger.debug('')
@@ -206,15 +222,20 @@ import click
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(context_settings=CONTEXT_SETTINGS,
                help='IR config')
-@click.argument('file_name')
+@click.argument('dev_name', type=str)
+@click.option('--button', '-b', 'button', type=str, default='',
+              help='button name')
+@click.option('--conf_file', '-c', '-f', 'conf_file', type=str, default='',
+              help='config file')
 @click.option('--debug', '-d', 'debug', is_flag=True, default=False,
               help='debug flag')
-def main(file_name, debug):
+def main(dev_name, button, conf_file, debug):
     logger = my_logger.get_logger(__name__, debug)
+    logger.debug('dev_name=%s, file=%s', dev_name, conf_file)
 
     app = App(debug=debug)
     try:
-        app.main(file_name)
+        app.main(dev_name, button, conf_file)
     finally:
         logger.debug('finally')
         app.end()

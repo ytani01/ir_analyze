@@ -19,11 +19,8 @@ from MyLogger import MyLogger
 my_logger = MyLogger(__file__)
 
 #####
-DEF_PIN = 27
-
-#####
 class IrRecv:
-    GLITCH_USEC     = 100   # usec
+    GLITCH_USEC     = 250   # usec
     LEADER_MIN_USEC = 1000
 
     INTERVAL_MAX    = 999999 # usec
@@ -233,11 +230,13 @@ class App:
         self.r.end()
 
 #####
+DEF_PIN = 27
+
 import click
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(context_settings=CONTEXT_SETTINGS,
                help='IR signal receiver')
-@click.argument('pin', type=int, default=27)
+@click.argument('pin', type=int, default=DEF_PIN)
 @click.option('--debug', '-d', 'debug', is_flag=True, default=False,
               help='debug flag')
 def main(pin, debug):

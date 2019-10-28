@@ -10,7 +10,7 @@ IrSend.py
 __author__ = 'Yoichi Tanibayashi'
 __date__   = '2019'
 
-from IrConfig import IrConfData, IrConfFile
+from IrConfig import IrConfig
 import pigpio
 import time
 
@@ -86,6 +86,8 @@ class WaveForm:
     def append_carrier(self, freq_KHz, duty, len_us):
         """
         append carrier wave.
+
+        <len_us> を0.071*1000*1000より大きくすると crate_wave() できない？
         """
         self.logger.debug('freq_KHz:%d, len_us:%d', freq_KHz, len_us)
 
@@ -140,10 +142,10 @@ class Wave(WaveForm):
 
 
 class IrSend:
-    FREQ = 38000      # 38KHz
-    DUTY = (1 / 3.0)  # 33.3%
+    DEF_FREQ = 38000      # 38KHz
+    DEF_DUTY = (1 / 3.0)  # 1/3
 
-    def __init__(self, pin, debug=False):
+    def __init__(self, pin, load_conf=False, debug=False):
         self.debug = debug
         self.logger = my_logger.get_logger(__class__.__name__, debug)
         self.logger.debug('pin: %d', pin)
@@ -157,14 +159,18 @@ class IrSend:
         self.pulse_wave_hash = {}
         self.space_wave_hash = {}
 
+        self.irconf = None
+        if load_conf:
+            self.irconf = IrConfig(load_all=True, debug=self.debug)
 
-    def send(self, dev_name, btn_name):
-        self.logger.debug('dev_name: %s, btn_name: %s', dev_name, btn_name)
-
-    def end(self):
+    def clean_wave(self):
         self.logger.debug('')
         self.clear_wave_hash()
         self.pi.wave_clear()
+
+    def end(self):
+        self.logger.debug('')
+        self.clean_wave()
         self.pi.stop()
         self.logger.debug('done')
         
@@ -180,10 +186,10 @@ class IrSend:
         self.clear_pulse_wave_hash()
         self.clear_space_wave_hash()
 
-    def create_pulse_wave1(self, usec):
-        self.logger.debug('usec: %d', usec)
+    def create_pulse_wave1(self, usec, freq=DEF_FREQ, duty=DEF_DUTY):
+        self.logger.debug('usec: %d, freq=%d', usec, freq)
         wave = Wave(self.pi, self.pin, debug=self.debug)
-        wave.append_carrier(self.FREQ, self.DUTY, usec)
+        wave.append_carrier(freq, duty, usec)
         return wave.create_wave()
 
     def clear_pulse_wave_hash(self):
@@ -261,12 +267,14 @@ class IrSend:
         self.logger.debug('wait_tick: %s', wait_tick)
         time.sleep(0.1)
 
-    def button_info2pulse_space(self, button_info, button_name):
+        self.clean_wave()
+
+    def conf_data2pulse_space(self, conf_data, button_name):
         '''
-        {button_info} -> [pulse1, space1, pulse2, space2, ..]
+        {conf_data} -> [pulse1, space1, pulse2, space2, ..]
         '''
-        self.logger.debug("button_info=%s, button_name=%s",
-                          button_info, button_name)
+        self.logger.debug("conf_data=%s, button_name=%s",
+                          conf_data, button_name)
 
         #
         # sig_list -> sig_str
@@ -274,7 +282,7 @@ class IrSend:
         #
         sig_str = ''
 
-        sig_list = button_info['buttons'][button_name]
+        sig_list = conf_data['buttons'][button_name]
         self.logger.debug("sig_list=%s", sig_list)
 
         if type(sig_list) == str:
@@ -290,10 +298,10 @@ class IrSend:
         self.logger.debug("sig_str=%s", sig_str)
 
         #
-        # マクロ(prefix, postfix etc.)展開
+        # マクロ(prefix, suffix etc.)展開
         #
-        for m in button_info['header']['macro']:
-            sig_str = sig_str.replace(m, button_info['header']['macro'][m])
+        for m in conf_data['header']['macro']:
+            sig_str = sig_str.replace(m, conf_data['header']['macro'][m])
             self.logger.debug("m=%s, sig_str=%s", m, sig_str)
 
         #
@@ -305,7 +313,7 @@ class IrSend:
         #
         # 分割
         #
-        for ch in button_info['header']['sym_tbl']:
+        for ch in conf_data['header']['sym_tbl']:
             if ch in '01':
                 continue
             sig_str = sig_str.replace(ch, ' ' + ch + ' ')
@@ -318,14 +326,14 @@ class IrSend:
         #
         sig_list2 = []
         for sig in sig_list1:
-            if sig in button_info['header']['sym_tbl']:
+            if sig in conf_data['header']['sym_tbl']:
                 if sig not in '01':
                     sig_list2.append(sig)
                     continue
 
-            if sig.startswith(IrConfData.HEADER_BIN):
+            if sig.startswith(IrConfig.HEADER_BIN):
                 # binary
-                sig_list2.append(sig[len(IrConfData.HEADER_BIN):])
+                sig_list2.append(sig[len(IrConfig.HEADER_BIN):])
                 continue
 
             # hex -> bin
@@ -350,331 +358,60 @@ class IrSend:
         # make pulse,space list
         #
         pulse_space_list = []
-        t0 = button_info['header']['T']
+        t0 = conf_data['header']['T']
         for ch in sig_str2:
-            if ch not in button_info['header']['sym_tbl']:
+            if ch not in conf_data['header']['sym_tbl']:
                 continue
-            sig = button_info['header']['sym_tbl'][ch][0]
+            sig = conf_data['header']['sym_tbl'][ch][0]
             pulse_space_list.append(sig[0] * t0)
             pulse_space_list.append(sig[1] * t0)
         self.logger.debug('pulse_space_list=%s', pulse_space_list)
         
         return pulse_space_list
 
+    def send_ir(self, conf_data, button_name):
+        self.logger.debug('conf_data=%s, button_name=%s',
+                          conf_data, button_name)
 
-    def send_ir(self, button_info, button_name):
-        self.logger.debug('button_info=%s, button_name=%s',
-                          button_info, button_name)
-
-        pulse_space = self.button_info2pulse_space(button_info, button_name)
+        pulse_space = self.conf_data2pulse_space(conf_data, button_name)
         self.logger.debug("pulse_space=%s", pulse_space)
 
         self.send_ir_pulse_space(pulse_space)
         
+    def send(self, dev_name, button_name):
+        self.logger.debug('dev_name=%s, button_name=%s', dev_name, button_name)
 
-    def sample(self):
-        '''
-        for test and sample
-        '''
-        self.logger.debug('')
+        if self.irconf is None:
+            self.irconf = IrConfig(load_all=True, debug=self.debug)
 
-        self.pi.wave_add_new()
-
-        '''
-        wf0 = []
-        wf0.append(pigpio.pulse(1 << self.pin, 0, 500000))
-        wf0.append(pigpio.pulse(0, 1 << self.pin, 800000))
-        wf0.append(pigpio.pulse(1 << self.pin, 0, 500000))
-        wf0.append(pigpio.pulse(0, 1 << self.pin, 800000))
-        self.pi.wave_add_generic(wf0)
-        q0 = self.pi.wave_create()
-
-        wf1 = WaveForm(self.pin, debug=self.debug)
-        wf1.append_pulse(WaveForm.ON,  300000)
-        wf1.append_pulse(WaveForm.OFF, 800000)
-        wf1.append_pulse_list([300000, 800000, 300000, 800000])
-        self.pi.wave_add_generic(wf1.waveform)
-        q1 = self.pi.wave_create()
-        
-        w1 = Wave(self.pi, self.pin, debug=self.debug)
-        w1.append_pulse(WaveForm.ON,  100000)
-        w1.append_pulse(WaveForm.OFF, 500000)
-        w1.append_pulse_list([100000, 500000, 300000, 500000], 2)
-        w1.append_pulse(WaveForm.OFF, 1000000)
-        q2 = w1.create_wave()
-        
-        w2 = Wave(self.pi, self.pin, debug=self.debug)
-        w2.append_carrier(3, self.DUTY, 1.51 *1000*1000)
-        w2.append_null(500000)
-        q3 = w2.create_wave()
-
-        w3 = Wave(self.pi, self.pin, debug=self.debug)
-        w3.append_carrier(self.FREQ, self.DUTY, 0.07185526 *1000*1000)
-        # ↑
-        # 0.71...をこれより大きくすると create_wave() できない？
-        w3.append_null(1500000)
-        q4 = w3.create_wave()
-
-
-        self.clear_wave_hash()
-        q5 = []
-        q5.append(self.create_pulse_wave(0.05 *1000*1000))
-        q5.append(self.create_space_wave(0.5 *1000*1000))
-        q5.append(self.create_pulse_wave(0.03 *1000*1000))
-        q5.append(self.create_space_wave(0.5 *1000*1000))
-        q5.append(self.create_pulse_wave(0.03 *1000*1000))
-        q5.append(self.create_space_wave(1 *1000*1000))
-
-        while True:
-            print('-')
-            #self.pi.wave_chain([q0, q1, q2, q3])
-            #self.pi.wave_send_once(q4)
-            #self.pi.wave_chain(q5)
-
-            print('/')
-            while self.pi.wave_tx_busy():
-                print('.', end='')
-                time.sleep(0.1)
-            print()
-        '''
-        
-        self.clear_wave_hash()
-        q6 = []
-
-        # tv-light power
-        u1 = [9050,  4525,
-              565,   565,   565,   565,   565,   565,   565,   565,
-              565,   565,   565,   565,   565,   565,   565,   565,
-              565,  1696,   565,  1696,   565,  1696,   565,  1696,
-              565,  1696,   565,  1696,   565,  1696,   565,  1696,
-              565,   565,   565,   565,   565,   565,   565,   565,
-              565,   565,   565,   565,   565,  1696,   565,   565,
-              565,  1696,   565,  1696,   565,  1696,   565,  1696,
-              565,  1696,   565,  1696,   565,   565,   565,  1696,
-              565, 39593,
-              9050,  2262,
-              565]
-
-        '''
-        # ball-lamp on
-        u1 = [8933,  4466,
-                558,   558,   558,   558,   558,   558,   558,   558,
-                558,   558,   558,   558,   558,   558,   558,   558,
-                558,  1675,   558,  1675,   558,  1675,   558,  1675,
-                558,   558,   558,  1675,   558,  1675,   558,  1675,
-                558,  1675,   558,  1675,   558,   558,   558,   558,
-                558,   558,   558,   558,   558,   558,   558,   558,
-                558,   558,   558,   558,   558,  1675,   558,  1675,
-                558,  1675,   558,  1675,   558,  1675,   558,  1675,
-                558, 40760,
-               8933,  2233,
-                558, 60303,
-               8933,  4466,
-                558,   558,   558,   558,   558,   558,   558,   558,
-                558,   558,   558,   558,   558,   558,   558,   558,
-                558,  1675,   558,  1675,   558,  1675,   558,  1675,
-                558,   558,   558,  1675,   558,  1675,   558,  1675,
-                558,  1675,   558,  1675,   558,   558,   558,   558,
-                558,   558,   558,   558,   558,   558,   558,   558,
-                558,   558,   558,   558,   558,  1675,   558,  1675,
-                558,  1675,   558,  1675,   558,  1675,   558,  1675,
-                558, 39643,
-               8933,  2233,
-                558]
-        '''
-
-        bi_tv_light = {
-            "header": {
-                "dev_name": "dev_name",
-                "memo": "memo",
-                "format": "NEC",
-                "T": 565.625,
-                "sym_tbl": {
-                    "-": [
-                        [
-                            16,
-                            8
-                        ]
-                    ],
-                    "=": [],
-                    "0": [
-                        [
-                            1,
-                            1
-                        ]
-                    ],
-                    "1": [[1,3]],
-                    "/": [[1,70],  [1,763],[1,1768]],
-                    "*": [[16,4]],
-                    "?": []
-                },
-                "macro": {
-                    "P": "00FF",
-                    "Q": ""
-                }
-            },
-            "buttons": {
-                "button": [
-                    "-",
-                    "P 02FD",
-                    "/",
-                    "*",
-                    "/",
-                    "-",
-                    "P 22DD",
-                    "/",
-                    "*",
-                    "/"
-                ]
-            }
-        }
-
-        bi_aircon ={
-            "header": {
-                "name": "dev_name",
-                "memo": "memo",
-                "format": "AEHA",
-                "T": 417.66161616161617,
-                "sym_tbl": {
-                    "-": [
-                        [
-                            8,
-                            4
-                        ]
-                    ],
-                    "=": [],
-                    "0": [
-                        [
-                            1,
-                            1
-                        ]
-                    ],
-                    "1": [
-                        [
-                            1,
-                            3
-                        ]
-                    ],
-                    "/": [
-                        [
-                            1,
-                            2395
-                        ]
-                    ],
-                    "*": [],
-                    "?": []
-                },
-                "macro": {
-                    "[prefix]": "-28C6 0008 08",
-                    "Q": "7F 900C 8",
-                    "R": "80 0000 0000 047"
-                }
-            },
-            "buttons": {
-                "off":     ["[prefix] 40BF/"],
-                "on_cool_25": ["[prefix]Q 9 R 8 /"],
-                "on_cool_26": ["[prefix]Q 5 R 0 /"],
-                "on_cool_27": ["[prefix]Q D R F /"],
-                "on_cool_28": ["[prefix]Q 3 R 7 /"],
-                "button2": ["[prefix] Q 0980 4000 R/"]
-            }
-        }
-
-        bi_lg_tv = {
-            "header": {
-                "name": "dev_name",
-                "memo": "memo",
-                "format": "NEC",
-                "T": 551.40625,
-                "sym_tbl": {
-                    "-": [[16, 8]], "=": [],
-                    "0": [[1, 1]], "1": [[1, 3]],
-                    "/": [[1, 73], [1, 174], [1, 1818]],
-                    "*": [[16, 4]], "?": []},
-                "macro": {
-                    "[prefix]": "",
-                    "Q": ""}},
-            "buttons": {
-                "power": ["-", "20DF 10EF", "/", "*", "/", "*", "/"]
-            }
-        }
-
-        bi_sony_bl = {
-            "header": {
-                "name": "dev_name",
-                "memo": "memo",
-                "format": "SONY",
-                "T": 597.0892857142857,
-                "sym_tbl": {
-                    "-": [[4, 1]],
-                    "=": [],
-                    "0": [[1, 1]],
-                    "1": [[2, 1]],
-                    "/": [[2, 19], [2, 1771]],
-                    "*": [],
-                    "?": []},
-                "macro": {
-                    "[prefix]": "",
-                    "[postfix]": "0101 1010 0111"
-                }
-            },
-            "buttons": {
-                "ok": [
-                    "-(b)101 1110 0101 1010 0111/",
-                    "-(b)101 1110 0101 1010 0111/",
-                    "-(b)101 1110 0101 1010 0111/",
-                    "-(b)101 1110 0101 1010 0111/"
-                ],
-                "home": [
-                    "-(b)010 0001 [postfix]/",
-                    "-(b)010 0001 [postfix]/",
-                    "-(b)010 0001 [postfix]/"
-                ]
-            }
-        }
-
-
-        '''
-        while True:
-            self.logger.debug('send')
-            #self.send_ir_pulse_space(u1)
-            self.send_ir(bi1, "button")
-            print('-', end='')
-            time.sleep(3)
-        '''
-        self.logger.debug('send')
-        #self.send_ir(bi_aircon, "button1")
-
-        self.send_ir(bi_sony_bl, "home")
-        time.sleep(2)
-        self.send_ir(bi_aircon, "on_cool_25")
-        time.sleep(3)
-        self.send_ir(bi_aircon, "off")
-        time.sleep(2)
-        self.send_ir(bi_sony_bl, "home")
-
-        #self.send_ir(bi_lg_tv, "power")
+        conf_data = self.irconf.get_dev_data(dev_name)
+        self.send_ir(conf_data, button_name)
         
 #####
 class App:
-    def __init__(self, conf_file, dev_name, button_name, pin, debug=False):
+    def __init__(self, dev_name, button_name, pin, debug=False):
         self.debug = debug
         self.logger = my_logger.get_logger(__class__.__name__, self.debug)
-        self.logger.debug('conf_file=%s, dev_name=%s, button_name=%s, pin=%d',
-                          conf_file, dev_name, button_name, pin)
+        self.logger.debug('dev_name=%s, button_name=%s, pin=%d',
+                          dev_name, button_name, pin)
 
-        self.conf_file   = conf_file
         self.dev_name    = dev_name
         self.button_name = button_name
         self.pin         = pin
 
-        self.conf = IrConfFile(self.conf_file, debug=self.debug)
-        
-    def main(self):
+        self.irsend = IrSend(self.pin, debug=self.debug)
+
+    def main(self, n=1):
         self.logger.debug('')
+
+        for i in range(n):
+            print('send:%d' % (i + 1))
+            self.irsend.send(self.dev_name, self.button_name)
+        print('done')
 
     def end(self):
         self.logger.debug('')
+        self.irsend.end()
 
 
 #####
@@ -684,20 +421,19 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                help='IR signal transmitter')
 @click.argument('dev_name', type=str)
 @click.argument('button_name', type=str)
-@click.option('--conf_file', '--conf', '-c', 'conf_file', default='ir.conf',
-              help='config file name')
 @click.option('--pin', '-p', 'pin', type=int, default=DEF_PIN,
               help='pin number')
+@click.option('-n', type=int, default=1)
 @click.option('--debug', '-d', 'debug', is_flag=True, default=False,
               help='debug flag')
-def main(conf_file, dev_name, button_name, pin, debug):
+def main(dev_name, button_name, pin, n, debug):
     logger = my_logger.get_logger(__name__, debug)
-    logger.debug('conf_file=%s, dev_name=%s, button_name=%s, pin=%d',
-                 conf_file, dev_name, button_name, pin)
+    logger.debug('dev_name=%s, button_name=%s, pin=%d, n=%d',
+                 dev_name, button_name, pin, n)
 
-    app = App(conf_file, dev_name, button_name, pin, debug=debug)
+    app = App(dev_name, button_name, pin, debug=debug)
     try:
-        app.main()
+        app.main(n)
     finally:
         logger.debug('finally')
         app.end()
