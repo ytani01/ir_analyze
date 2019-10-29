@@ -14,7 +14,15 @@
 
 ## 2. *.irconf -- 設定ファイル
 
-### 2.1 書式
+### 2.1 書式 -- JSON
+
+{
+  "comment": "comment text",
+  "header": {
+  },
+  "buttons: {
+  }
+}
 
 ### 2.2 拡張子
 
@@ -28,5 +36,6 @@
 
 ## A. References
 
+1. [Codes for IR Remotes (for YTF IR Bridge)](https://github.com/arendst/Tasmota/wiki/Codes-for-IR-Remotes-(for-YTF-IR-Bridge))
 1. [IR Codes TV LG 55UH8509](https://github.com/arendst/Sonoff-Tasmota/wiki/IR-Codes-for-TV-LG-55UH8509)
 2. [irdb](http://irdb.tk/)
