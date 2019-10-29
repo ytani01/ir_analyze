@@ -1,13 +1,17 @@
 # PiIr -- pigpio + python3 による、赤外線リモコン制御
 
+--
+## 概要
+
+* 正確な解析。
+* 送受信を同時に行える。
+
 ## 1. Comands
 
 ### 1.1 IrAnalyze.py -- 赤外線信号受信・解析
 
 赤外線信号を受信して解析結果を表示する。
 詳細な情報を /tmp/ir_json.dump に保存(追記)する。
-
-#### Usage
 
 ```
 Usage: IrAnalyze.py [OPTIONS] [PIN]
@@ -23,8 +27,6 @@ Options:
 
 デバイス名とボタン名を指定して、赤外線信号を送信する。
 デバイス名・ボタンの設定は後述
-
-#### Usage
 
 ```
 Usage: IrSend.py [OPTIONS] DEV_NAME [BUTTONS]...
