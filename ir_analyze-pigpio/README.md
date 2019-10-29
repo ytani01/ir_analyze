@@ -1,7 +1,5 @@
 # IrTools for Raspberry Pi
-----
-pigpio + python3 による、赤外線リモコン制御
-----
+### pigpio + python3 による、赤外線リモコン制御
 
 ## 概要
 
