@@ -16,9 +16,10 @@
 
 ### 2.1 書式 -- JSON
 
-```json
+* example 1
+```
 {
-  "comment": "example 2.",
+  "comment": "example 1",
   "header": {
     "dev_name": ["lamp", "ball_lamp"],
     "format":   "NEC",
@@ -42,9 +43,12 @@
     "off": ["- [prefix] 40B [suffix]", 2]
   }
 }
+```
 
+* example 2
+```
 {
-  "comment": "example 1",
+  "comment": "example 2",
   "header": {
     "dev_name": ["sony_bl", "bl"],
     "format":   "SONY",
