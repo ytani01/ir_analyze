@@ -1,11 +1,29 @@
-# PiIr -- pigpio + python3 による、赤外線リモコン制御
+# PiIr -- Raspberry Pi + pigpio + python3 による、赤外線リモコン制御
 
 ## 概要
 
 * 正確な解析。
 * 送受信を同時に行える。
 
+## 注意
+
+PWM用のピン(GPIO 12,13,18)は、使用できなくなります。
+(クロックとして使用しているため)
+
+
 ## Comands
+
+### pigpiod
+
+事前に pigpiod を起動しておいてください。
+
+```bash
+$ sudo pigpiod -t 0
+```
+
+自動起動する場合は、crontabを設定。(crontab.sample参照)
+
+オプション「-t 0」は必須です。
 
 ### IrAnalyze.py -- 赤外線信号受信・解析
 
@@ -121,7 +139,6 @@ Options:
 2. ${HOME}/.irconf.d
 3. /etc/irconf.d
 
---
 
 ## References
 
