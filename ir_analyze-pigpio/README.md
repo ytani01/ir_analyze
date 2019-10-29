@@ -16,9 +16,9 @@
 
 検索パスは、以下の順
 
-* カレントディレクトリ
-* ${HOME}/.irconf.d
-* /etc/irconf.d
+1. カレントディレクトリ
+2. ${HOME}/.irconf.d
+3. /etc/irconf.d
 
 ## A. References
 
