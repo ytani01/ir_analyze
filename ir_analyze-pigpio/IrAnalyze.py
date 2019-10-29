@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -u
+#!/usr/bin/env python3
 #
 # (c) 2019 Yoichi Tanibayashi
 #
@@ -512,6 +512,7 @@ class App:
             self.msgq.put(raw_data)
                 
     def end(self):
+
         self.logger.debug('')
 
         if self.th_worker.is_alive():
