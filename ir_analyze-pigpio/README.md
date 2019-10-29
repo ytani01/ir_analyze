@@ -1,14 +1,13 @@
 # PiIr -- pigpio + python3 による、赤外線リモコン制御
 
---
 ## 概要
 
 * 正確な解析。
 * 送受信を同時に行える。
 
-## 1. Comands
+## Comands
 
-### 1.1 IrAnalyze.py -- 赤外線信号受信・解析
+### IrAnalyze.py -- 赤外線信号受信・解析
 
 赤外線信号を受信して解析結果を表示する。
 詳細な情報を /tmp/ir_json.dump に保存(追記)する。
@@ -41,9 +40,9 @@ Options:
   -h, --help            Show this message and exit.
 ```
 
-## 2. *.irconf -- 設定ファイル
+## *.irconf -- 設定ファイル
 
-### 2.1 書式 -- JSON
+### 書式 -- JSON
 
 下記の例のような書式の JSONフォーマット・ファイルを作成する。
 
@@ -109,20 +108,22 @@ Options:
 }
 ```
 
-### 2.2 拡張子
+### 拡張子
 
 「.irconf」
 
 これ以外の拡張子だと無視される。
 
 
-### 2.3 検索パス
+### 検索パス
 
 1. カレントディレクトリ
 2. ${HOME}/.irconf.d
 3. /etc/irconf.d
 
-## A.1 References
+--
+
+## References
 
 * [pigpio](http://abyz.me.uk/rpi/pigpio/)
 * [ESP-WROOM-02で赤外線学習リモコン](https://github.com/Goji2100/IRServer)
