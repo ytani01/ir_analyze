@@ -68,10 +68,6 @@
     }
   },
   "buttons": {
-    "null":    ["[prefix]  [suffix]",
-                "[prefix]  [suffix]",
-                "[prefix]  [suffix]"],
-
     "ch_01":   ["[prefix] 000 0000 [suffix]", 3],
     "ch_02":   ["[prefix] 100 0000 [suffix]", 3],
     "ch_03":   ["[prefix] 010 0000 [suffix]", 3],
