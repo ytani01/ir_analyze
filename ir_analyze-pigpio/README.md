@@ -7,10 +7,37 @@
 赤外線信号を受信して解析結果を表示する。
 詳細な情報を /tmp/ir_json.dump に保存(追記)する。
 
+#### Usage
+
+```
+Usage: IrAnalyze.py [OPTIONS] [PIN]
+
+  IR signal analyzer
+
+Options:
+  -d, --debug  debug flag
+  -h, --help   Show this message and exit.
+```
+
 ### 1.2 IrSend.py -- 赤外線信号送信
 
 デバイス名とボタン名を指定して、赤外線信号を送信する。
 デバイス名・ボタンの設定は後述
+
+#### Usage
+
+```
+Usage: IrSend.py [OPTIONS] DEV_NAME [BUTTONS]...
+
+  IR signal transmitter
+
+Options:
+  -p, --pin INTEGER     pin number
+  -n INTEGER
+  -i, --interval FLOAT
+  -d, --debug           debug flag
+  -h, --help            Show this message and exit.
+```
 
 ## 2. *.irconf -- 設定ファイル
 
@@ -82,7 +109,10 @@
 
 ### 2.2 拡張子
 
-「.irconf」。
+「.irconf」
+
+これ以外の拡張子だと無視される。
+
 
 ### 2.3 検索パス
 
