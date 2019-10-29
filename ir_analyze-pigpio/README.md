@@ -1,12 +1,13 @@
 # PiIr -- pigpio + python3 による、赤外線リモコン制御
 
-## Coomands
+## 1. Comands
 
-### IrAnalyze.py -- 赤外線信号受信・解析
+### 1.1 IrAnalyze.py -- 赤外線信号受信・解析
 
-### IrSend.py -- 赤外線信号送信
 
-### *.irconf -- 設定ファイル
+### 1.2 IrSend.py -- 赤外線信号送信
+
+## 2. *.irconf -- 設定ファイル
 
 ## A. References
 
