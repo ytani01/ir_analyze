@@ -23,24 +23,23 @@ class IrConfig:
     data_ent  := {'file': 'file_name1', 'data': 'conf_data1'}
     conf_data := 
     {
-      "header": {
-        "dev_name": ["dev_name1", "dev_name2"],
-        "format:": "{AEHA|NEC|AEHA|DYSON}"      # optional
-        "T":    t,     # us
-        "sym_tbl": {
-          "-": [n, n], # leader
-          "=": [n, n], # leader?
-          "0": [n, n], # 0
-          "1": [n, n], # 1
-          "/": [n, n], # trailer
-          "*": [n, n], # repeat
-          "?": [n, n]  # ???
-        },
-        "macro": {
-          "[prefix]": "- {hex|(0b)bin} ",
-          "[suffix]": "{hex|bin} /",
-          "[repeat]": "*/"
-        }
+      "comment": "comment text",
+      "dev_name": ["dev_name1", "dev_name2"],
+      "format:": "{AEHA|NEC|AEHA|DYSON}"      # optional
+      "T":    t,     # us
+      "sym_tbl": {
+        "-": [n, n], # leader
+        "=": [n, n], # leader?
+        "0": [n, n], # 0
+        "1": [n, n], # 1
+        "/": [n, n], # trailer
+        "*": [n, n], # repeat
+        "?": [n, n]  # ???
+      },
+      "macro": {
+        "[prefix]": "- {hex|(0b)bin} ",
+        "[suffix]": "{hex|bin} /",
+        "[repeat]": "*/"
       }
       "buttons": {
         "button1": "[prefix] {hex|bin} [suffix] [repeat] [repeat]",
@@ -103,8 +102,8 @@ class IrConfig:
         #
         # マクロ(prefix, suffix etc.)展開
         #
-        for m in dev_data['header']['macro']:
-            sig_str = sig_str.replace(m, dev_data['header']['macro'][m])
+        for m in dev_data['macro']:
+            sig_str = sig_str.replace(m, dev_data['macro'][m])
         #
         # スペース削除
         #
@@ -114,7 +113,7 @@ class IrConfig:
         #
         # 記号、数値部の分割
         #
-        for ch in dev_data['header']['sym_tbl']:
+        for ch in dev_data['sym_tbl']:
             if ch in '01':
                 continue
             sig_str = sig_str.replace(ch, ' ' + ch + ' ')
@@ -127,7 +126,7 @@ class IrConfig:
         #
         sig_list2 = []
         for sig in sig_list1:
-            if sig in dev_data['header']['sym_tbl']:
+            if sig in dev_data['sym_tbl']:
                 if sig not in '01':
                     sig_list2.append(sig)
                     continue
@@ -157,12 +156,12 @@ class IrConfig:
         # make pulse,space list (p_s_list)
         #
         p_s_list = []
-        t = dev_data['header']['T']
+        t = dev_data['T']
         for ch in sig_str2:
-            if ch not in dev_data['header']['sym_tbl']:
+            if ch not in dev_data['sym_tbl']:
                 self.logger.warning('ch=%s !? .. ignored', ch)
                 continue
-            (pulse, space) = dev_data['header']['sym_tbl'][ch][0]
+            (pulse, space) = dev_data['sym_tbl'][ch][0]
             p_s_list.append(pulse * t)
             p_s_list.append(space * t)
         self.logger.debug('p_s_list=%s', p_s_list)
@@ -212,7 +211,7 @@ class IrConfig:
 
         for d_ent in self.data:
             try:
-                d_nlist = d_ent['data']['header']['dev_name']
+                d_nlist = d_ent['data']['dev_name']
                 self.logger.debug('d_nlist=%s', d_nlist)
             except KeyError:
                 self.logger.warning('KeyError .. ignored: %s', d_ent)
