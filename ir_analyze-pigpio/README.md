@@ -36,6 +36,6 @@
 
 ## A. References
 
-1. [Codes for IR Remotes (for YTF IR Bridge)](https://github.com/arendst/Tasmota/wiki/Codes-for-IR-Remotes-(for-YTF-IR-Bridge))
-1. [IR Codes TV LG 55UH8509](https://github.com/arendst/Sonoff-Tasmota/wiki/IR-Codes-for-TV-LG-55UH8509)
-2. [irdb](http://irdb.tk/)
+* [ESP-WROOM-02で赤外線学習リモコン](https://github.com/Goji2100/IRServer)
+* [irdb](http://irdb.tk/)
+* [Codes for IR Remotes (for YTF IR Bridge)](https://github.com/arendst/Tasmota/wiki/Codes-for-IR-Remotes-(for-YTF-IR-Bridge))
