@@ -477,7 +477,7 @@ class App:
             msg = self.msgq.get()
             self.logger.debug('msg=%s', msg)
             if msg == self.MSG_END:
-                break;
+                break
 
             result = self.analyzer.analyze(msg)
             self.logger.debug('result=%s', result)

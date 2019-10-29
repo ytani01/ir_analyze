@@ -82,8 +82,93 @@ class IrConfig:
         except KeyError:
             self.logger.warning('no such button: %s,%s', dev_name, button_name)
             return []
+        self.logger.debug('button_data=%s', button_data)
 
-        ### XXX
+        sig_str = ''
+        #
+        # 繰り返し回数展開
+        #
+        if type(button_data) == str:
+            sig_str = button_data
+        elif type(button_data) == list:
+            if len(button_data) == 2:
+                (s, n) = button_data
+                for i in range(n):
+                    sig_str += s
+        self.logger.debug('sig_str=%s', sig_str)
+        if sig_str == '':
+            self.logger.error('invalid button_data:%s', button_data)
+            return []
+
+        #
+        # マクロ(prefix, suffix etc.)展開
+        #
+        for m in dev_data['header']['macro']:
+            sig_str = sig_str.replace(m, dev_data['header']['macro'][m])
+        #
+        # スペース削除
+        #
+        sig_str = sig_str.replace(' ', '')
+        self.logger.debug('sig_str=%s', sig_str)
+
+        #
+        # 記号、数値部の分割
+        #
+        for ch in dev_data['header']['sym_tbl']:
+            if ch in '01':
+                continue
+            sig_str = sig_str.replace(ch, ' ' + ch + ' ')
+        self.logger.debug('sig_str=%s', sig_str)
+        sig_list1 = sig_str.split()
+        self.logger.debug('sig_list1=%s', sig_list1)
+
+        #
+        # hex -> bin
+        #
+        sig_list2 = []
+        for sig in sig_list1:
+            if sig in dev_data['header']['sym_tbl']:
+                if sig not in '01':
+                    sig_list2.append(sig)
+                    continue
+
+            if sig.startswith(self.HEADER_BIN):
+                # '(0b)0101' -> '0101'
+                sig_list2.append(sig[len(self.HEADER_BIN):])
+                continue
+
+            # hex -> bin
+            bin_str = ''
+            for ch in sig:
+                if ch in '0123456789ABCDEFabcdef':
+                    bin_str += format(int(ch, 16), '04b')
+                else:
+                    bin_str += ch
+            sig_list2.append(bin_str)
+        self.logger.debug('sig_list2=%s', sig_list2)
+
+        #
+        # 一つの文字列に再結合
+        #
+        sig_str2 = ''.join(sig_list2)
+        self.logger.debug('sig_str2=%s', sig_str2)
+                    
+        #
+        # make pulse,space list (p_s_list)
+        #
+        p_s_list = []
+        t = dev_data['header']['T']
+        for ch in sig_str2:
+            if ch not in dev_data['header']['sym_tbl']:
+                self.logger.warning('ch=%s !? .. ignored', ch)
+                continue
+            (pulse, space) = dev_data['header']['sym_tbl'][ch][0]
+            p_s_list.append(pulse * t)
+            p_s_list.append(space * t)
+        self.logger.debug('p_s_list=%s', p_s_list)
+
+        return p_s_list
+
 
     def get_button_data(self, dev_name, button_name):
         self.logger.debug('dev_name=%s, button_name=%s', dev_name, button_name)
@@ -222,6 +307,8 @@ class App:
             if button_name != '':
                 button_data = irconf.get_button_data(dev_name, button_name)
                 print('%s,%s: %s' % (dev_name, button_name, button_data))
+
+                irconf.get_pulse_space(dev_name, button_name)
 
     def end(self):
         self.logger.debug('')

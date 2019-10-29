@@ -92,9 +92,9 @@ class WaveForm:
         self.logger.debug('freq_KHz:%d, len_us:%d', freq_KHz, len_us)
 
         wave_len_us = 1000000.0 / freq_KHz      # = 1/(Hz) * 1000 * 1000
-        wave_n        = int(round(len_us/wave_len_us))
-        on_usec       = int(round(wave_len_us * duty))
-        self.logger.debug('wave_lan_usec: %d, wave_n: %d, on_usec: %d',
+        wave_n      = int(round(len_us/wave_len_us))
+        on_usec     = int(round(wave_len_us * duty))
+        self.logger.debug('wave_len_usec: %d, wave_n: %d, on_usec: %d',
                           wave_len_us, wave_n, on_usec)
         
         cur_usec = 0
@@ -119,7 +119,7 @@ class Wave(WaveForm):
         self.pin = pin
 
         if pin in self.PIN_PWM:
-            msg = 'pin:%d is one of PWM audio pins:%s' % (pin, self.PIN_PWM)
+            msg = 'pin:%d is one of PWM pins:%s' % (pin, self.PIN_PWM)
             raise ValueError(msg)
         
         super().__init__(self.pin, debug=self.debug)
@@ -144,6 +144,8 @@ class Wave(WaveForm):
 class IrSend:
     DEF_FREQ = 38000      # 38KHz
     DEF_DUTY = (1 / 3.0)  # 1/3
+
+    SIG_BITS_MIN = 5
 
     def __init__(self, pin, load_conf=False, debug=False):
         self.debug = debug
@@ -174,6 +176,7 @@ class IrSend:
         self.pi.stop()
         self.logger.debug('done')
         
+
     def print_signal(self, signal):
         self.logger.debug('signal:%s', signal)
 
@@ -185,6 +188,7 @@ class IrSend:
         self.logger.debug('')
         self.clear_pulse_wave_hash()
         self.clear_space_wave_hash()
+
 
     def create_pulse_wave1(self, usec, freq=DEF_FREQ, duty=DEF_DUTY):
         self.logger.debug('usec: %d, freq=%d', usec, freq)
@@ -234,11 +238,14 @@ class IrSend:
         return self.space_wave_hash[usec]
 
     
-    def send_ir_pulse_space(self, sig):
-        self.logger.debug('sig: %s', sig)
+    def send_pulse_space(self, sig):
+        '''
+        sig = [pulse1, space1, pulse2, space2, .. ]
+        '''
+        self.logger.debug('sig=%s', sig)
 
-        if len(sig) <= 10:
-            self.logger.warning("sig is too short: %s .. ignored", sig)
+        if len(sig) <= self.SIG_BITS_MIN * 2:
+            self.logger.warning('sig is too short: %s .. ignored', sig)
             return
 
         self.clear_wave_hash()
@@ -268,116 +275,6 @@ class IrSend:
         time.sleep(0.1)
 
         self.clean_wave()
-
-    def conf_data2pulse_space(self, conf_data, button_name):
-        '''
-        {conf_data} -> [pulse1, space1, pulse2, space2, ..]
-        '''
-        self.logger.debug("conf_data=%s, button_name=%s",
-                          conf_data, button_name)
-
-        #
-        # sig_list -> sig_str
-        # リスト構造を単一文字列に変換
-        #
-        sig_str = ''
-
-        sig_list = conf_data['buttons'][button_name]
-        self.logger.debug("sig_list=%s", sig_list)
-
-        if type(sig_list) == str:
-            sig_str = sig_list
-        elif type(sig_list) == list:
-            if len(sig_list) == 2:
-                (s, n) = sig_list
-                for i in range(n):
-                    sig_str += s
-        self.logger.debug("sig_str=%s", sig_str)
-
-        if sig_str == '':
-            self.logger.error("invalid sig_list: %s", sig_list)
-            return []
-
-        #
-        # マクロ(prefix, suffix etc.)展開
-        #
-        for m in conf_data['header']['macro']:
-            sig_str = sig_str.replace(m, conf_data['header']['macro'][m])
-            self.logger.debug("m=%s, sig_str=%s", m, sig_str)
-
-        #
-        # スペース削除
-        #
-        sig_str = sig_str.replace(' ', '')
-        self.logger.debug("sig_str=%s", sig_str)
-
-        #
-        # 分割
-        #
-        for ch in conf_data['header']['sym_tbl']:
-            if ch in '01':
-                continue
-            sig_str = sig_str.replace(ch, ' ' + ch + ' ')
-        self.logger.debug("sig_str=%s", sig_str)
-        sig_list1 = sig_str.split()
-        self.logger.debug("sig_list=%s", sig_list1)
-
-        #
-        # hex -> bin
-        #
-        sig_list2 = []
-        for sig in sig_list1:
-            if sig in conf_data['header']['sym_tbl']:
-                if sig not in '01':
-                    sig_list2.append(sig)
-                    continue
-
-            if sig.startswith(IrConfig.HEADER_BIN):
-                # binary
-                sig_list2.append(sig[len(IrConfig.HEADER_BIN):])
-                continue
-
-            # hex -> bin
-            bin_str = ''
-            for ch in sig:
-                if ch in '0123456789ABCDEFabcdef':
-                    bin_str += format(int(ch, 16), '04b')
-                else:
-                    bin_str += ch
-            sig_list2.append(bin_str)
-        self.logger.debug("sig_list2=%s", sig_list2)
-
-        #
-        # 一つの文字列に再結合
-        #
-        sig_str2 = ''
-        for sig in sig_list2:
-            sig_str2 += sig
-        self.logger.debug("sig_str2=%s", sig_str2)
-
-        #
-        # make pulse,space list
-        #
-        pulse_space_list = []
-        t0 = conf_data['header']['T']
-        for ch in sig_str2:
-            if ch not in conf_data['header']['sym_tbl']:
-                continue
-            sig = conf_data['header']['sym_tbl'][ch][0]
-            pulse_space_list.append(sig[0] * t0)
-            pulse_space_list.append(sig[1] * t0)
-        self.logger.debug('pulse_space_list=%s', pulse_space_list)
-        
-        return pulse_space_list
-
-    def send_ir(self, conf_data, button_name):
-        self.logger.debug('conf_data=%s, button_name=%s',
-                          conf_data, button_name)
-
-        pulse_space = self.conf_data2pulse_space(conf_data, button_name)
-        self.logger.debug("pulse_space=%s", pulse_space)
-
-        self.send_ir_pulse_space(pulse_space)
         
     def send(self, dev_name, button_name):
         self.logger.debug('dev_name=%s, button_name=%s', dev_name, button_name)
@@ -385,37 +282,81 @@ class IrSend:
         if self.irconf is None:
             self.irconf = IrConfig(load_all=True, debug=self.debug)
 
-        # XXX
-        # pulse_space = self.irconf.get_pulse_space(dev_name, button_name)
-        # self.send_ir_pulse_space(pulse_space)
-        conf_data = self.irconf.get_dev_data(dev_name)
-        self.send_ir(conf_data, button_name)
-        
+        pulse_space = self.irconf.get_pulse_space(dev_name, button_name)
+        self.send_pulse_space(pulse_space)
+
+
 #####
+import threading
+import queue
+import time
+
 class App:
-    def __init__(self, dev_name, button_name, pin, debug=False):
+    MSG_SLEEP = '__sleep__'
+    MSG_END   = ''
+
+    def __init__(self, dev_name, buttons, n, interval, pin, debug=False):
         self.debug = debug
         self.logger = my_logger.get_logger(__class__.__name__, self.debug)
-        self.logger.debug('dev_name=%s, button_name=%s, pin=%d',
-                          dev_name, button_name, pin)
+        self.logger.debug('dev_name=%s, buttons=%s, n=%d, interval=%d, pin=%d',
+                          dev_name, buttons, n, interval, pin)
 
-        self.dev_name    = dev_name
-        self.button_name = button_name
-        self.pin         = pin
+        self.dev_name = dev_name
+        self.buttons  = buttons
+        self.n        = n
+        self.interval = interval
+        self.pin      = pin
 
-        self.irsend = IrSend(self.pin, debug=self.debug)
+        self.irsend = IrSend(self.pin, load_conf=True, debug=self.debug)
 
-    def main(self, n=1):
+        self.msgq = queue.Queue()
+        self.th_worker = threading.Thread(target=self.worker)
+        self.th_worker.start()
+
+    def worker(self):
         self.logger.debug('')
 
-        for i in range(n):
-            print('send:%d' % (i + 1))
-            self.irsend.send(self.dev_name, self.button_name)
-        print('done')
+        while True:
+            msg = self.msgq.get()
+            self.logger.debug('msg=%s', msg)
+            if msg == self.MSG_END:
+                break
+
+            (dev_name, button_name) = msg
+            if dev_name == self.MSG_SLEEP:
+                time.sleep(int(button_name))
+                continue
+
+            self.irsend.send(dev_name, button_name)
+
+        self.logger.debug('done')
+        
+
+    def main(self):
+        self.logger.debug('')
+
+        print('dev: %s' % self.dev_name)
+        for i in range(self.n):
+            if self.n > 1:
+                print('[%d]' % (i + 1))
+            for b in self.buttons:
+                print('  button: %s' % b)
+                self.msgq.put([self.dev_name, b])
+                if self.interval > 0:
+                    print('   sleep: %.1f sec' % self.interval)
+                    self.msgq.put([self.MSG_SLEEP, self.interval])
 
     def end(self):
         self.logger.debug('')
+
+        if self.th_worker.is_alive():
+            self.msgq.put(self.MSG_END)
+            self.logger.debug('join()')
+            self.th_worker.join()
+            
         self.irsend.end()
+        print('done')
+        self.logger.debug('done')
 
 
 #####
@@ -424,20 +365,21 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(context_settings=CONTEXT_SETTINGS,
                help='IR signal transmitter')
 @click.argument('dev_name', type=str)
-@click.argument('button_name', type=str)
+@click.argument('buttons', type=str, nargs=-1)
 @click.option('--pin', '-p', 'pin', type=int, default=DEF_PIN,
               help='pin number')
-@click.option('-n', type=int, default=1)
+@click.option('-n', 'n', type=int, default=1)
+@click.option('--interval', '-i', 'interval', type=float, default=0.0)
 @click.option('--debug', '-d', 'debug', is_flag=True, default=False,
               help='debug flag')
-def main(dev_name, button_name, pin, n, debug):
+def main(dev_name, buttons, pin, interval, n, debug):
     logger = my_logger.get_logger(__name__, debug)
-    logger.debug('dev_name=%s, button_name=%s, pin=%d, n=%d',
-                 dev_name, button_name, pin, n)
+    logger.debug('dev_name=%s, buttons=%s, n=%d, interval=%f, pin=%d',
+                 dev_name, buttons, n, interval, pin)
 
-    app = App(dev_name, button_name, pin, debug=debug)
+    app = App(dev_name, buttons, n, interval, pin, debug=debug)
     try:
-        app.main(n)
+        app.main()
     finally:
         logger.debug('finally')
         app.end()
