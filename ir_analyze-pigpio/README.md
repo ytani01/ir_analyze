@@ -16,7 +16,7 @@
 
 ### 2.1 書式 -- JSON
 
-'''json
+'''
 
 {
   "comment": "example 2.",
