@@ -25,7 +25,7 @@ class IrRecv:
 
     INTERVAL_MAX    = 999999 # usec
 
-    WATCHDOG_MSEC   = INTERVAL_MAX / 1000    # msec
+    WATCHDOG_MSEC   = INTERVAL_MAX / 1000 / 2    # msec
     WATCHDOG_CANCEL = 0
 
     VAL_ON          = 0
