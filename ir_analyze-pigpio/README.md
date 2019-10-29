@@ -20,10 +20,9 @@ PWM用のピン(GPIO 12,13,18)は、使用できなくなります。
 ```bash
 $ sudo pigpiod -t 0
 ```
+オプション「-t 0」は必須です。
 
 自動起動する場合は、crontabを設定。(crontab.sample参照)
-
-オプション「-t 0」は必須です。
 
 ### IrAnalyze.py -- 赤外線信号受信・解析
 
