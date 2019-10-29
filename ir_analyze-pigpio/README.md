@@ -1,4 +1,4 @@
-# PiIr -- Raspberry Pi + pigpio + python3 による、赤外線リモコン制御
+# IrTools for Raspberry Pi: pigpio + python3 による、赤外線リモコン制御
 
 ## 概要
 
