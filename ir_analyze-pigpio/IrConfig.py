@@ -26,7 +26,7 @@ class IrConfig:
       "comment": "comment text",
       "dev_name": ["dev_name1", "dev_name2"],
       "format:": "{AEHA|NEC|AEHA|DYSON}"      # optional
-      "T":    t,     # us
+      "T": t,        # us
       "sym_tbl": {
         "-": [n, n], # leader
         "=": [n, n], # leader?
