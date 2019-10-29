@@ -1,9 +1,5 @@
 # lirc-analyze.py
 
-## 0. pigpio
-
-
-
 ## 1. lirc-analyze.py
 
 ### 1.1 インストール
