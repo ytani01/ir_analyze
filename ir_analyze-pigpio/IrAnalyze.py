@@ -2,9 +2,9 @@
 #
 # (c) 2019 Yoichi Tanibayashi
 #
-'''
+"""
 IrAnalyze.py
-'''
+"""
 __author__ = 'Yoichi Tanibayashi'
 __date__   = '2019'
 
@@ -17,9 +17,9 @@ my_logger = MyLogger(__file__)
 
 #####
 class IrAnalyze:
-    '''
+    """
     raw_data = [[pulse1, space1], [pulse2, space2], ... ]
-    '''
+    """
     RAW_DATA_LEN_MIN = 6
     
     SIG_LONG =  99999 # usec
@@ -36,6 +36,13 @@ class IrAnalyze:
     SIG_STR_01	= SIG_CH['zero'] + SIG_CH['one']
 
     def __init__(self, raw_data=[], debug=False):
+        """
+        Parameters
+        ----------
+        raw_data: list
+          [[pulse1, space1], [pulse2, space2], ..]
+
+        """
         self.debug = debug
         self.logger = my_logger.get_logger(__class__.__name__, debug)
         self.logger.debug('raw_data=%s', raw_data)
@@ -43,7 +50,6 @@ class IrAnalyze:
         self.result     = None
 
         self.get_raw_data(raw_data)
-        
 
     def get_raw_data(self, raw_data):
         self.logger.debug('raw_data=%s', raw_data)
@@ -55,12 +61,23 @@ class IrAnalyze:
         if len(self.raw_data[0]) == 1:
             self.raw_data[-1].append(self.SIG_END)
             self.logger.debug('raw_data=%s', raw_data)
-        
 
     def split_str(self, s, n):
-        '''
+        """
         文字列<s>の<n>文字毎にスペースを挿入
-        '''
+
+        Parameters
+        ----------
+        s: str
+          source string
+        
+        n: int
+
+        Returns
+        -------
+        s: str
+          変換した文字列
+        """
         self.logger.debug('s=%s, n=%d', s, n)
 
         if n <= 0:
@@ -73,11 +90,10 @@ class IrAnalyze:
         s = s1.strip()
         return s
 
-
     def fq_dist(self, data, step=0.2):
-        '''
+        """
         度数分布作成
-        '''
+        """
         self.logger.debug('data=%s, step=%.1f', data, step)
         
         fq_list = [[]]
@@ -94,29 +110,17 @@ class IrAnalyze:
             fq_list[-1].append(val)
         return fq_list
 
-    #
-    # 信号フォーマット取得
-    #
-    # 事前にself.analyze()する必要がある
-    #
-    def get_sig_format(self):
-        return self.sig_format_str
-            
-    #
-    # analyze data
-    #
-    #
     def analyze(self, raw_data=[]):
-        '''
-        pulse, sleepの時間には、誤差があるが、
-        一組のパルスとスリープの和は、ほぼ正確と仮定。
+        """
+        pulse, sleepには、誤差があるが、
+        一組の (pulse + sleep) は、ほぼ正確と仮定。
     
-        真のパルス+スリープ時間を t_p, t_s、誤差 tdとしたとき、
+        真のパルス, スリープ時間を t_p, t_s、誤差 tdとしたとき、
           raw_data[pulse] + raw_data[sleep] = t_p + t_s
           raw_data[pulse] = t_p + td
           raw_data[sleep] = t_s - td
            
-        '''
+        """
         self.logger.debug('raw_data=%s', raw_data)
 
         if raw_data != []:
@@ -386,9 +390,9 @@ class IrAnalyze:
         return self.result
 
     def bin2hex(self, b, n=2, lsb_first=False):
-        '''
+        """
         bit pattern strings to hex strings
-        '''
+        """
         self.logger.debug('b=%s, n=%d, lsb_first=%s', b, n, lsb_first)
 
         if b[0] not in self.SIG_STR_01:
@@ -404,13 +408,35 @@ class IrAnalyze:
         self.logger.debug('h=%s', h)
         return h
 
-    def json_dumps(self, dev_data=None):
-        self.logger.debug('dev_data=%s', dev_data)
+    def json_dumps(self, dev_list=None):
+        """
+        デバイス設定データ(JSON形式)を見やすく整形する。
+        ``dev_data``が省略された場合は、
+        最後に解析した結果 ``self.result``を整形する。
 
-        if dev_data is None:
-            dev_data = self.result
+
+        Parameters
+        ----------
+        dev_list: json list
+
+        """
+        self.logger.debug('dev_list=%s', dev_list)
+
+        if dev_list is None:
+            if self.result is None:
+                self.logger.waring('no result')
+                return ''
+
+            dev_list = [self.result]
+            self.logger.debug('dev_list=%s', dev_list)
+
+        if dev_list == []:
+            self.logger.waring('no data')
+            return ''
             
-        json_str = '''{
+        json_str = '[\n'
+        for dev_data in dev_list:
+            json_str += '''{
   "comment": %s,
   "dev_name": %s,
   "format":   %s,
@@ -432,6 +458,7 @@ class IrAnalyze:
     "button1": "%s"
   }
 }
+,
 ''' % (json.dumps(dev_data['comment']),
        json.dumps(dev_data['dev_name']),
        json.dumps(dev_data['format']),
@@ -443,8 +470,10 @@ class IrAnalyze:
        dev_data['sym_tbl']['/'],
        dev_data['sym_tbl']['*'],
        dev_data['sym_tbl']['?'],
-       dev_data['buttons']['button1']
-)
+       dev_data['buttons']['button1'])
+
+        json_str = json_str[:-2] + ']\n'
+
         self.logger.debug('json_str=\'%s\'', json_str)
         return json_str
 
@@ -454,8 +483,11 @@ import queue
 import os
 
 class App:
+    """
+    IrAnalyzeクラスを使った実例
+    """
     PULSE_SPACE_FILE = '/tmp/pulse_space.txt'
-    JSON_DUMP_FILE   = '/tmp/ir_json.dump'
+    JSON_DUMP_FILE   = '/tmp/ir_dump.irconf'
 
     MSG_END = ''
 
@@ -476,6 +508,14 @@ class App:
         self.serial_num = 0
 
     def worker(self):
+        """
+        サブスレッド
+
+        メッセージキューから<msgを取出し、
+        信号解析する。
+
+        <msg>: [[pulse1, space1], [pulse2, space2], ..]
+        """
         self.logger.debug('')
 
         while True:
@@ -497,17 +537,22 @@ class App:
                 dev_name1 = 'dev_' + str(self.serial_num)
                 dev_name2 = 'dev_' + ('%06d' % self.serial_num)
                 result['dev_name'] = [dev_name1, dev_name2]
-                print('%s,%s,%s' % (dev_name2, 
+                print('%s,%s,%s' % (dev_name1, 
                                     result['format'],
                                     result['buttons']['button1']))
 
                 if self.serial_num == 1:
-                    open_mode = 'w'
+                     dump_data = [ result ]
                 else:
-                    open_mode = 'a'
-                    
-                with open(self.JSON_DUMP_FILE, open_mode) as f:
-                    f.write(self.analyzer.json_dumps() + ',\n')
+                    with open(self.JSON_DUMP_FILE, 'r') as f:
+                        dump_data = json.load(f)
+                    dump_data.append(result)
+
+                json_str = self.analyzer.json_dumps(dump_data)
+                self.logger.debug('json_str=%s', json_str)
+                
+                with open(self.JSON_DUMP_FILE, 'w') as f:
+                    f.write(json_str)
 
                 if len(result['sym_tbl']['?']) > 0:
                     print('\'?\': %s .. try again' %
@@ -521,6 +566,15 @@ class App:
         self.logger.debug('done')
 
     def main(self):
+        """
+        メインスレッド
+
+        赤外線信号を受信し、
+        メッセージをキューに格納すると、
+        ただちに次の信号を受信する。
+
+        実際の解析は <worker>スレッドに任せる。
+        """
         self.logger.debug('')
 
         while True:
@@ -530,7 +584,6 @@ class App:
 
                 
     def end(self):
-
         self.logger.debug('')
 
         if self.th_worker.is_alive():
@@ -563,7 +616,6 @@ def main(pin, debug):
     finally:
         logger.debug('finally')
         app.end()
-        
 
 if __name__ == '__main__':
     main()

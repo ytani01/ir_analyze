@@ -2,10 +2,10 @@
 #
 # (c) 2019 Yoichi Tanibayashi
 #
-'''
+"""
 IrSend.py
 
-'''
+"""
 __author__ = 'Yoichi Tanibayashi'
 __date__   = '2019'
 
@@ -56,10 +56,10 @@ class WaveForm:
             self.waveform.append(pigpio.pulse(0, 1 << self.pin, usec))
 
     def append_pulse_list1(self, onoff_list):
-        '''
+        """
         onoff_list: 
           [on_usec1, off_usec1, on_usec2, off_usec2, ...]
-        '''
+        """
         verr_msg = 'onoff_list:' + str(onoff_list) + ' must be int list'
         if type(onoff_list) != list:
             raise ValueError(verr_msg)
@@ -238,9 +238,9 @@ class IrSend:
 
     
     def send_pulse_space(self, sig):
-        '''
+        """
         sig = [pulse1, space1, pulse2, space2, .. ]
-        '''
+        """
         self.logger.debug('sig=%s', sig)
 
         if len(sig) <= self.SIG_BITS_MIN * 2:
@@ -263,11 +263,11 @@ class IrSend:
         self.logger.debug('total_us: %d', total_us)
 
         self.pi.wave_chain(w)
-        '''
+        """
         sleep_sec = (total_us / 1000.0 / 1000.0) + 0.5
         self.logger.debug('sleep_sec: %f', sleep_sec)
         time.sleep(sleep_sec)
-        '''
+        """
         wait_tick = ''
         while self.pi.wave_tx_busy():
             wait_tick += '*'
@@ -286,13 +286,17 @@ class IrSend:
             self.irconf = IrConfig(load_all=True, debug=self.debug)
 
         pulse_space = self.irconf.get_pulse_space(dev_name, button_name)
+        if pulse_space == []:
+            return False
+        if type(pulse_space[0]) == str:
+            self.logger.error(pulse_space[0])
+            return False
         return self.send_pulse_space(pulse_space)
 
 
 #####
 import threading
 import queue
-import time
 
 class App:
     MSG_SLEEP = '__sleep__'
