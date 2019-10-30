@@ -263,7 +263,7 @@ class IrConfig:
             l = f.readlines()
 
         if l[0].split()[0] != '{' or l[-1].split()[0] != ',':
-            self.logger.debug('invalid file: %s', file_name)
+            self.logger.debug('invalid json.dump file: %s', file_name)
             return None
 
         l.pop(-1)

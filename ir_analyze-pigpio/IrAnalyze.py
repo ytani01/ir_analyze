@@ -501,7 +501,12 @@ class App:
                                     result['format'],
                                     result['buttons']['button1']))
 
-                with open(self.JSON_DUMP_FILE, 'a') as f:
+                if self.serial_num == 1:
+                    open_mode = 'w'
+                else:
+                    open_mode = 'a'
+                    
+                with open(self.JSON_DUMP_FILE, open_mode) as f:
                     f.write(self.analyzer.json_dumps() + ',\n')
 
                 if len(result['sym_tbl']['?']) > 0:
