@@ -13,8 +13,8 @@
     "?":      []
   },
   "macro": {
-    "[prefix]": "-(0b)",
-    "[suffix]": "0101 1010 0111/"
+    "[prefix]": "- (0b)",
+    "[suffix]": "(0b)0101 1010 0111 /"
   },
   "buttons": {
     "null":    ["[prefix]  [suffix]",

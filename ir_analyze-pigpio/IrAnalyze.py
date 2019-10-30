@@ -314,7 +314,7 @@ class IrAnalyze:
         for sig in self.sig_line:
             if sig[0] in self.SIG_STR_01:
                 if len(sig) % 4 == 0:
-                    sig = self.bit2hex(sig, n=4)
+                    sig = self.bin2hex(sig, n=4)
                     self.sig_line1.append(sig)
                 else:
                     self.sig_line1.append(IrConfig.HEADER_BIN + sig)
@@ -385,7 +385,7 @@ class IrAnalyze:
 
         return self.result
 
-    def bit2hex(self, b, n=2, lsb_first=False):
+    def bin2hex(self, b, n=2, lsb_first=False):
         '''
         bit pattern strings to hex strings
         '''

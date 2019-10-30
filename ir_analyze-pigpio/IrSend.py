@@ -244,8 +244,10 @@ class IrSend:
         self.logger.debug('sig=%s', sig)
 
         if len(sig) <= self.SIG_BITS_MIN * 2:
+            if len(sig) == 0:
+                self.logger.debug('%s: no signal', sig)
             self.logger.warning('sig is too short: %s .. ignored', sig)
-            return
+            return False
 
         self.clear_wave_hash()
         w = []
@@ -274,6 +276,8 @@ class IrSend:
         time.sleep(0.1)
 
         self.clean_wave()
+
+        return True
         
     def send(self, dev_name, button_name):
         self.logger.debug('dev_name=%s, button_name=%s', dev_name, button_name)
@@ -282,7 +286,7 @@ class IrSend:
             self.irconf = IrConfig(load_all=True, debug=self.debug)
 
         pulse_space = self.irconf.get_pulse_space(dev_name, button_name)
-        self.send_pulse_space(pulse_space)
+        return self.send_pulse_space(pulse_space)
 
 
 #####
@@ -326,7 +330,9 @@ class App:
                 time.sleep(int(button_name))
                 continue
 
-            self.irsend.send(dev_name, button_name)
+            if not self.irsend.send(dev_name, button_name):
+                self.logger.error('%s,%s: sending failed',
+                                  dev_name, button_name)
 
         self.logger.debug('done')
         

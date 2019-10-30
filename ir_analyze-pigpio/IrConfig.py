@@ -76,6 +76,9 @@ class IrConfig:
         self.logger.debug('dev_name=%s, button_name=%s', dev_name, button_name)
 
         dev_data = self.get_dev_data(dev_name)
+        if dev_data is None:
+            self.logger.warning('%s: no data', dev_name)
+            return []
         try:
             button_data = dev_data['buttons'][button_name]
         except KeyError:
@@ -109,6 +112,13 @@ class IrConfig:
         #
         sig_str = sig_str.replace(' ', '')
         self.logger.debug('sig_str=%s', sig_str)
+
+        #
+        # バイナリコードの途中の HEADR_BIN を削除
+        #   '(0b)01(0b)10' -> '(0b)0110'
+        #
+        sig_str = sig_str.replace('0' + self.HEADER_BIN, '0')
+        sig_str = sig_str.replace('1' + self.HEADER_BIN, '1')
 
         #
         # 記号、数値部の分割
@@ -202,6 +212,7 @@ class IrConfig:
 
         data_ent = self.get_dev(dev_name)
         if data_ent is None:
+            self.logger.debug('%s: no data', dev_name)
             return None
 
         return data_ent['data']
@@ -241,7 +252,27 @@ class IrConfig:
         self.logger.debug('files=%s', files)
 
         for f in files:
-            self.load(f)
+            if self.load(f) is None:
+                return False
+        return True
+
+    def load_json_dump(self, file_name):
+        self.logger.debug('file_name=%s', file_name)
+
+        with open(file_name, 'r') as f:
+            l = f.readlines()
+
+        if l[0].split()[0] != '{' or l[-1].split()[0] != ',':
+            self.logger.debug('invalid file: %s', file_name)
+            return None
+
+        l.pop(-1)
+        l.insert(0,'[')
+        l.append(']')
+        s = ''.join(l)
+        self.logger.debug(s)
+        data = json.loads(s)
+        return data
 
     def load(self, file_name):
         self.logger.debug('file_name=%s', file_name)
@@ -251,8 +282,10 @@ class IrConfig:
                 data = json.load(f)
                 self.logger.debug('data=%s', json.dumps(data))
         except json.JSONDecodeError as e:
-            self.logger.error('%s: %s, %s', file_name, type(e), e)
-            return None
+            data = self.load_json_dump(file_name)
+            if data is None:
+                self.logger.error('%s: %s, %s', file_name, type(e), e)
+                return None
         except Exception as e:
             self.logger.error('%s, %s', type(e), e)
             return None

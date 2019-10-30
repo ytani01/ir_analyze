@@ -10,7 +10,7 @@ from logging import getLogger, StreamHandler, Formatter, DEBUG, INFO, WARN
 class MyLogger:
     def __init__(self, name=''):
         self.handler_fmt = Formatter(
-            '%(asctime)s %(levelname)s %(name)s.%(funcName)s> %(message)s',
+            '%(asctime)s %(levelname)s %(name)s.%(funcName)s:%(lineno)d> %(message)s',
             datefmt='%H:%M:%S')
 
         self.console_handler = StreamHandler()
