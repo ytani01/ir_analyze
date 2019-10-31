@@ -296,17 +296,22 @@ import queue
 
 
 class App:
-    MSG_SLEEP = '__sleep__'
-    MSG_END   = ''
+    MSG_LIST        = '__list__'
+    MSG_SLEEP       = '__sleep__'
+    MSG_END         = ''
 
-    def __init__(self, dev_name, buttons, n, interval, pin, debug=False):
+    def __init__(self, args, n, interval, pin, debug=False):
         self.debug = debug
         self.logger = my_logger.get_logger(__class__.__name__, self.debug)
-        self.logger.debug('dev_name=%s, buttons=%s, n=%d, interval=%d, pin=%d',
-                          dev_name, buttons, n, interval, pin)
+        self.logger.debug('args=%s, n=%d, interval=%d, pin=%d',
+                          args, n, interval, pin)
 
-        self.dev_name = dev_name
-        self.buttons  = buttons
+        if len(args) == 0:
+            self.dev_name = ''
+            self.buttons  = []
+        else:
+            self.dev_name = args[0]
+            self.buttons  = args[1:]
         self.n        = n
         self.interval = interval
         self.pin      = pin
@@ -316,6 +321,33 @@ class App:
         self.msgq = queue.Queue()
         self.th_worker = threading.Thread(target=self.worker)
         self.th_worker.start()
+
+    def show_dev_list(self):
+        self.logger.debug('')
+
+        for d in self.irsend.irconf.data:
+            print(' %s' % d['data']['dev_name'])
+
+    def show_button_list(self, dev_name):
+        self.logger.debug('dev_name=%s', dev_name)
+
+        dev = self.irsend.irconf.get_dev(dev_name)
+        if dev is None:
+            print('%s: no such device' % dev_name)
+            return
+        print()
+
+        macro   = dev['data']['macro']
+        for m in macro:
+            if macro[m] != '':
+                print(' %-17s : %s' % (m, macro[m]))
+        print()
+
+        buttons = dev['data']['buttons']
+        for b in buttons:
+            if buttons[b] != '':
+                print(' %-17s : %s' % (b, buttons[b]))
+        print()
 
     def worker(self):
         self.logger.debug('')
@@ -331,6 +363,16 @@ class App:
                 time.sleep(int(button_name))
                 continue
 
+            if dev_name == self.MSG_LIST:
+                # show device list
+                self.show_dev_list()
+                break
+
+            if button_name == self.MSG_LIST:
+                # show button list
+                self.show_button_list(dev_name)
+                break
+
             if not self.irsend.send(dev_name, button_name):
                 self.logger.error('%s,%s: sending failed',
                                   dev_name, button_name)
@@ -341,10 +383,19 @@ class App:
     def main(self):
         self.logger.debug('')
 
+        if self.dev_name == '':
+            self.msgq.put([self.MSG_LIST, ''])
+            return
+
         print('dev: %s' % self.dev_name)
         for i in range(self.n):
             if self.n > 1:
                 print('[%d]' % (i + 1))
+
+            if len(self.buttons) == 0:
+                self.msgq.put([self.dev_name, self.MSG_LIST])
+                break
+
             for b in self.buttons:
                 print('  button: %s' % b)
                 self.msgq.put([self.dev_name, b])
@@ -370,20 +421,19 @@ import click
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(context_settings=CONTEXT_SETTINGS,
                help='IR signal transmitter')
-@click.argument('dev_name', type=str)
-@click.argument('buttons', type=str, nargs=-1)
+@click.argument('args', type=str, nargs=-1)
 @click.option('--pin', '-p', 'pin', type=int, default=DEF_PIN,
               help='pin number')
 @click.option('-n', 'n', type=int, default=1)
 @click.option('--interval', '-i', 'interval', type=float, default=0.0)
 @click.option('--debug', '-d', 'debug', is_flag=True, default=False,
               help='debug flag')
-def main(dev_name, buttons, pin, interval, n, debug):
+def main(args, pin, interval, n, debug):
     logger = my_logger.get_logger(__name__, debug)
-    logger.debug('dev_name=%s, buttons=%s, n=%d, interval=%f, pin=%d',
-                 dev_name, buttons, n, interval, pin)
+    logger.debug('args=%s, n=%d, interval=%f, pin=%d',
+                 args, n, interval, pin)
 
-    app = App(dev_name, buttons, n, interval, pin, debug=debug)
+    app = App(args, n, interval, pin, debug=debug)
     try:
         app.main()
     finally:

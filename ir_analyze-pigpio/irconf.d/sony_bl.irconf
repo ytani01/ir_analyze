@@ -14,7 +14,8 @@
   },
   "macro": {
     "[prefix]": "- (0b)",
-    "[suffix]": "(0b)0101 1010 0111 /"
+    "[suffix]": "(0b)0101 1010 0111 /",
+    "[eom]":    ""
   },
   "buttons": {
     "template": ["[prefix]  [suffix]", 3],
@@ -95,6 +96,6 @@
     "fwd_15":  ["[prefix] 101 0111 [suffix]", 3],
     "back_10": ["[prefix] 011 0111 [suffix]", 3],
 
-    "eob":     ["[prefix] 111 1111 [suffix]", 3]
+    "eob":     ""
   }
 }

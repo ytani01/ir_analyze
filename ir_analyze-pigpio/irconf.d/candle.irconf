@@ -20,7 +20,7 @@
   "buttons": {
     "template": "[prefix]  [suffix]",
     "on":  "[prefix] 629D [suffix]",
-    "off": "[prefix] A857 [suffix]"
+    "off": "[prefix] A857 [suffix]",
     "eob": ""
   }
 }
