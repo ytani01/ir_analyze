@@ -14,10 +14,13 @@
   },
   "macro": {
     "[prefix]": "-00FF",
-    "[suffix]": "/*/"
+    "[suffix]": "/*/",
+    "[eom]": ""
   },
   "buttons": {
+    "template": "[prefix]  [suffix]",
     "on":  "[prefix] 629D [suffix]",
     "off": "[prefix] A857 [suffix]"
+    "eob": ""
   }
 }

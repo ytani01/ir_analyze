@@ -399,11 +399,11 @@ class IrAnalyze:
   "macro": {
     "[prefix]": "",
     "[suffix]": "",
-    "[end of macro]":""
+    "[end of macro]": ""
   },
   "buttons": {
     "button1": %s,
-    "end of buttons":""
+    "end of buttons": ""
   }
 }
 ,

@@ -17,9 +17,7 @@
     "[suffix]": "(0b)0101 1010 0111 /"
   },
   "buttons": {
-    "null":    ["[prefix]  [suffix]",
-                "[prefix]  [suffix]",
-                "[prefix]  [suffix]"],
+    "template": ["[prefix]  [suffix]", 3],
 
     "ch_01":   ["[prefix] 000 0000 [suffix]", 3],
     "ch_02":   ["[prefix] 100 0000 [suffix]", 3],
@@ -97,6 +95,6 @@
     "fwd_15":  ["[prefix] 101 0111 [suffix]", 3],
     "back_10": ["[prefix] 011 0111 [suffix]", 3],
 
-    "dummy":   ["[prefix] 111 1111 [suffix]", 3]
+    "eob":     ["[prefix] 111 1111 [suffix]", 3]
   }
 }
