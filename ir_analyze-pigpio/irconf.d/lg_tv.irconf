@@ -1,0 +1,67 @@
+{
+  "comment": "LG TV",
+  "dev_name": ["lg_tv", "tv"],
+  "format":   "NEC",
+  "T":        550.468750,
+  "sym_tbl": {
+    "-":      [[16, 8]],
+    "=":      [],
+    "0":      [[1, 1]],
+    "1":      [[1, 3]],
+    "/":      [[1, 74], [1, 175], [1, 915]],
+    "*":      [[16, 4]],
+    "?":      []
+  },
+  "macro": {
+    "[prefix]": "-20DF",
+    "[suffix]": "/*/*/",
+    "[end of macro]": ""
+  },
+  "buttons": {
+    "template":  "[prefix]  [suffix]",
+    
+    "power":     "[prefix] 10 EF [suffix]",
+    "on":        "[prefix] 23 DC [suffix]",
+    "off":       "[prefix] A3 5C [suffix]",
+
+    "home":      "[prefix] 3E C1 [suffix]",
+
+    "end":       "[prefix] DA 25 [suffix]",
+
+    "settings":  "[prefix] C2 3D [suffix]",
+
+    "ok":        "[prefix] 22 DD [suffix]",
+    "back":      "[prefix] 14 EB [suffix]",
+
+    "left":      "[prefix] E0 1F [suffix]",
+    "right":     "[prefix] 60 9F [suffix]",
+    "up":        "[prefix] 02 FD [suffix]",
+    "down":      "[prefix] 82 7D [suffix]",
+
+    "vol_up":    "[prefix] 40 BF [suffix]",
+    "vol_down":  "[prefix] C0 3F [suffix]",
+    "vol_down2": "[prefix] CE 31 [suffix]",
+    "mute":      "[prefix] 90 6F [suffix]",
+    
+    "input":     "[prefix] D0 2F [suffix]",
+
+    "dtb":       "[prefix] DB 0C [suffix]",
+    "bs":        "[prefix] DB 00 [suffix]",
+    "cs1":       "[prefix] DB 08 [suffix]",
+    "cs2":       "[prefix] DB 04 [suffix]",
+
+    "hdmi1":     "[prefix] 73 8C [suffix]",
+    "hdmi2":     "[prefix] 33 CC [suffix]",
+    "hdmi3":     "[prefix] 97 68 [suffix]",
+
+    "q_menu":    "[prefix] A2 5D [suffix]",
+
+    "my_app":    "[prefix] 42 BD [suffix]",
+
+    "guide":     "[prefix] D5 2A [suffix]",
+
+    "viewsize":  "[prefix] 9E 61 [suffix]",
+
+    "end of buttons": ""
+  }
+}

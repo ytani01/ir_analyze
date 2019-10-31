@@ -462,10 +462,10 @@ class App:
         """
         サブスレッド
 
-        メッセージキューから<msgを取出し、
+        メッセージキューから``msg``を取出し、
         信号解析する。
 
-        <msg>: [[pulse1, space1], [pulse2, space2], ..]
+        msg: [[pulse1, space1], [pulse2, space2], ..]
         """
         self.logger.debug('')
 
@@ -490,7 +490,7 @@ class App:
                 result['dev_name'] = [dev_name1, dev_name2]
                 print('%s,%s,%s' % (dev_name1,
                                     result['format'],
-                                    result['buttons']['button1']))
+                                    json.dumps(result['buttons']['button1'])))
 
                 if self.serial_num == 1:
                     dump_data = [result]

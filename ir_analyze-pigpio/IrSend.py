@@ -350,6 +350,19 @@ class App:
         print()
 
     def worker(self):
+        """
+        サブスレッド
+
+        メッセージキューからメッセージ ``msg``を受け取って処理する
+
+        メッセージフォーマット
+        ----------------------
+          [dev_name, button_name]: 赤外線信号送信
+          [MSG_SLEEP, sleep_sec]:  スリープ
+          [MSG_LIST, '']:          デバイス名リスト
+          [dev_name, MSG_LIST]:    ボタン名リスト
+
+        """
         self.logger.debug('')
 
         while True:
