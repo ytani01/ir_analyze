@@ -20,21 +20,22 @@ my_logger = MyLogger(__file__)
 #####
 DEF_PIN = 22
 
+
 #####
 class WaveForm:
     OFF       = 0
     ON        = 1
     ONOFF     = [OFF, ON]
     ONOFF_STR = ['OFF', 'ON']
-    
+
     def __init__(self, pin, debug=False):
         self.debug = debug
         self.logger = my_logger.get_logger(__class__.__name__, debug)
         self.logger.debug('pin=%d', pin)
-        
+
         self.pin = pin
         self.waveform = []
-        
+
     def clear(self):
         self.logger.debug('')
         self.waveform = []
@@ -57,7 +58,7 @@ class WaveForm:
 
     def append_pulse_list1(self, onoff_list):
         """
-        onoff_list: 
+        onoff_list:
           [on_usec1, off_usec1, on_usec2, off_usec2, ...]
         """
         verr_msg = 'onoff_list:' + str(onoff_list) + ' must be int list'
@@ -91,20 +92,20 @@ class WaveForm:
         self.logger.debug('freq_KHz:%d, len_us:%d', freq_KHz, len_us)
 
         wave_len_us = 1000000.0 / freq_KHz      # = 1/(Hz) * 1000 * 1000
-        wave_n      = int(round(len_us/wave_len_us))
+        wave_n      = int(round(len_us / wave_len_us))
         on_usec     = int(round(wave_len_us * duty))
         self.logger.debug('wave_len_usec: %d, wave_n: %d, on_usec: %d',
                           wave_len_us, wave_n, on_usec)
-        
+
         cur_usec = 0
         for i in range(wave_n):
-            target_usec = int(round((i+1) * wave_len_us))
-            cur_usec    += on_usec
-            off_usec    = target_usec - cur_usec
-            cur_usec    += off_usec
+            target_usec = int(round((i + 1) * wave_len_us))
+            cur_usec += on_usec
+            off_usec = target_usec - cur_usec
+            cur_usec += off_usec
             self.append_pulse_list1([on_usec, off_usec])
-            
-        
+
+
 #####
 class Wave(WaveForm):
     PIN_PWM = [12, 13, 18]
@@ -120,11 +121,11 @@ class Wave(WaveForm):
         if pin in self.PIN_PWM:
             msg = 'pin:%d is one of PWM pins:%s' % (pin, self.PIN_PWM)
             raise ValueError(msg)
-        
+
         super().__init__(self.pin, debug=self.debug)
-        self.wave     = None
-        
-        #self.pi.wave_add_new()
+        self.wave = None
+
+        # self.pi.wave_add_new()
 
     def create_wave(self):
         self.logger.debug('len(waveform): %d', len(self.waveform))
@@ -174,7 +175,6 @@ class IrSend:
         self.clean_wave()
         self.pi.stop()
         self.logger.debug('done')
-        
 
     def print_signal(self, signal):
         self.logger.debug('signal:%s', signal)
@@ -182,12 +182,10 @@ class IrSend:
         for i, interval in enumerate(self.signal):
             print('%s %d' % (self.VAL_STR[i % 2], interval))
 
-
     def clear_wave_hash(self):
         self.logger.debug('')
         self.clear_pulse_wave_hash()
         self.clear_space_wave_hash()
-
 
     def create_pulse_wave1(self, usec, freq=DEF_FREQ, duty=DEF_DUTY):
         self.logger.debug('usec: %d, freq=%d', usec, freq)
@@ -202,7 +200,7 @@ class IrSend:
             self.pi.wave_delete(self.pulse_wave_hash[usec])
 
         self.pulse_wave_hash = {}
-        
+
     def create_pulse_wave(self, usec):
         self.logger.debug('usec: %d', usec)
 
@@ -212,7 +210,6 @@ class IrSend:
 
         return self.pulse_wave_hash[usec]
 
-
     def clear_space_wave_hash(self):
         self.logger.debug('')
 
@@ -220,13 +217,13 @@ class IrSend:
             self.pi.wave_delete(self.space_wave_hash[usec])
 
         self.space_wave_hash = {}
-        
+
     def create_space_wave1(self, usec):
         self.logger.debug('usec: %d', usec)
         wave = Wave(self.pi, self.pin, debug=self.debug)
         wave.append_null(int(round(usec)))
         return wave.create_wave()
-    
+
     def create_space_wave(self, usec):
         self.logger.debug('usec: %d', usec)
 
@@ -236,7 +233,6 @@ class IrSend:
 
         return self.space_wave_hash[usec]
 
-    
     def send_pulse_space(self, sig):
         """
         sig = [pulse1, space1, pulse2, space2, .. ]
@@ -255,7 +251,7 @@ class IrSend:
         total_us = 0
         for i, us in enumerate(sig):
             total_us += us
-            
+
             if i % 2 == 0:
                 w.append(self.create_pulse_wave(us))
             else:
@@ -278,7 +274,7 @@ class IrSend:
         self.clean_wave()
 
         return True
-        
+
     def send(self, dev_name, button_name):
         self.logger.debug('dev_name=%s, button_name=%s', dev_name, button_name)
 
@@ -297,6 +293,7 @@ class IrSend:
 #####
 import threading
 import queue
+
 
 class App:
     MSG_SLEEP = '__sleep__'
@@ -337,9 +334,9 @@ class App:
             if not self.irsend.send(dev_name, button_name):
                 self.logger.error('%s,%s: sending failed',
                                   dev_name, button_name)
+            time.sleep(0.1)
 
         self.logger.debug('done')
-        
 
     def main(self):
         self.logger.debug('')
@@ -362,7 +359,7 @@ class App:
             self.msgq.put(self.MSG_END)
             self.logger.debug('join()')
             self.th_worker.join()
-            
+
         self.irsend.end()
         print('done')
         self.logger.debug('done')
@@ -393,6 +390,7 @@ def main(dev_name, buttons, pin, interval, n, debug):
         logger.debug('finally')
         app.end()
         logger.debug('done')
+
 
 if __name__ == '__main__':
     main()

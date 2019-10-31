@@ -15,12 +15,13 @@ from pathlib import Path
 from MyLogger import MyLogger
 my_logger = MyLogger(__file__)
 
+
 #####
 class IrConfig:
     """
     data      := [{data_ent1}, {data_ent2}, ..}
     data_ent  := {'file': 'file_name1', 'data': 'conf_data1'}
-    conf_data := 
+    conf_data :=
     {
       "comment": "comment text",
       "dev_name": ["dev_name1", "dev_name2"],
@@ -70,7 +71,7 @@ class IrConfig:
 
         if load_all:
             self.load_all()
-            
+
     def get_pulse_space(self, dev_name, button_name):
         """
         Parameters
@@ -173,7 +174,7 @@ class IrConfig:
         #
         sig_str2 = ''.join(sig_list2)
         self.logger.debug('sig_str2=%s', sig_str2)
-                    
+
         #
         # make pulse,space list (p_s_list)
         #
@@ -190,7 +191,6 @@ class IrConfig:
 
         return p_s_list
 
-
     def get_dev(self, dev_name):
         self.logger.debug('dev_name=%s', dev_name)
 
@@ -201,11 +201,11 @@ class IrConfig:
             except KeyError:
                 self.logger.warning('KeyError .. ignored: %s', d_ent)
                 continue
-                
+
             if type(d_nlist) != list:
                 d_nlist = [d_nlist]
                 self.logger.debug('d_nlist=%s', d_nlist)
-            for d_name in  d_nlist:
+            for d_name in d_nlist:
                 self.logger.debug('d_name=%s', d_name)
 
                 if d_name == dev_name:
@@ -245,16 +245,16 @@ class IrConfig:
         self.logger.debug('file_name=%s', file_name)
 
         with open(file_name, 'r') as f:
-            l = f.readlines()
+            line = f.readlines()
 
-        if l[0].split()[0] != '{' or l[-1].split()[0] != ',':
+        if line[0].split()[0] != '{' or line[-1].split()[0] != ',':
             self.logger.debug('invalid json.dump file: %s', file_name)
             return None
 
-        l.pop(-1)
-        l.insert(0,'[')
-        l.append(']')
-        s = ''.join(l)
+        line.pop(-1)
+        line.insert(0, '[')
+        line.append(']')
+        s = ''.join(line)
         self.logger.debug(s)
         data = json.loads(s)
         return data
@@ -283,13 +283,13 @@ class IrConfig:
             data_ent = {'file': file_name, 'data': data}
             self.data.append(data_ent)
         self.logger.debug('data=%s', self.data)
-                
+
         return self.data
 
     def save(self, file_name=None):
         self.logger.debug('file_name=%s', file_name)
 
-        
+
 #####
 class App:
     """
@@ -316,7 +316,7 @@ class App:
 
         if conf_data_ent is not None:
             print('<%s>' % (dev_name))
-            
+
             conf_data = conf_data_ent['data']
             self.logger.debug('conf_data=%s', conf_data)
 
@@ -342,6 +342,7 @@ class App:
     def end(self):
         self.logger.debug('')
 
+
 #### main
 import click
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -364,6 +365,7 @@ def main(dev_name, button, conf_file, debug):
     finally:
         logger.debug('finally')
         app.end()
+
 
 if __name__ == '__main__':
     main()

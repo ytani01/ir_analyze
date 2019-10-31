@@ -18,15 +18,16 @@ import threading
 from MyLogger import MyLogger
 my_logger = MyLogger(__file__)
 
+
 #####
 class IrRecv:
     """
     赤外線信号の受信
     """
-    GLITCH_USEC     = 250   # usec
+    GLITCH_USEC     = 250     # usec
     LEADER_MIN_USEC = 1000
 
-    INTERVAL_MAX    = 999999 # usec
+    INTERVAL_MAX    = 999999  # usec
 
     WATCHDOG_MSEC   = INTERVAL_MAX / 1000 / 2    # msec
     WATCHDOG_CANCEL = 0
@@ -36,7 +37,7 @@ class IrRecv:
     VAL_STR         = ['pulse', 'space', 'timeout']
 
     MSG_END         = ''
-    
+
     def __init__(self, pin, glitch_usec=GLITCH_USEC, debug=False):
         """
         Parameters
@@ -55,11 +56,11 @@ class IrRecv:
         self.pi = pigpio.pi()
         self.pi.set_mode(self.pin, pigpio.INPUT)
         self.pi.set_glitch_filter(self.pin, self.GLITCH_USEC)
-        
+
         self.receiving = False
         self.raw_data = []
 
-        self.msgq    = queue.Queue()
+        self.msgq = queue.Queue()
 
     def set_watchdog(self, ms):
         """
@@ -103,7 +104,7 @@ class IrRecv:
             return
 
         self.set_watchdog(self.WATCHDOG_MSEC)
-        
+
     def recv(self, verbose=False):
         """
         赤外線信号の受信
@@ -119,18 +120,18 @@ class IrRecv:
         """
         self.logger.debug('')
 
-        self.raw_data   = []
+        self.raw_data  = []
         self.receiving = True
 
         self.th_worker = threading.Thread(target=self.worker, daemon=True)
         self.th_worker.start()
 
         self.cb_recv = self.pi.callback(self.pin, pigpio.EITHER_EDGE,
-                                   self.cb_func_recv)
+                                        self.cb_func_recv)
 
         if verbose:
             print('Ready')
-            
+
         """
         while self.receiving:
             time.sleep(0.1)
@@ -156,9 +157,9 @@ class IrRecv:
             self.msgq.put(self.MSG_END)
             self.logger.debug('join()')
             self.th_worker.join()
-        
+
         self.logger.debug('done')
-        
+
     def raw2pulse_space(self, raw_data=None):
         """
         リスト形式のデータをテキストに変換。
@@ -176,22 +177,21 @@ class IrRecv:
           pulse p2(us)
           space s2(us)
           :
-        
         """
         self.logger.debug('row_data=%s', raw_data)
-        
+
         if raw_data is None:
             raw_data = self.raw_data
             self.logger.debug('raw_data=%s', raw_data)
 
         pulse_space = ''
-        
+
         for (p, s) in raw_data:
-            pulse_space += '%s %d\n' %(self.VAL_STR[0], p)
-            pulse_space += '%s %d\n' %(self.VAL_STR[1], s)
+            pulse_space += '%s %d\n' % (self.VAL_STR[0], p)
+            pulse_space += '%s %d\n' % (self.VAL_STR[1], s)
 
         return pulse_space
-            
+
     def print_pulse_space(self, raw_data=None):
         """
         """
@@ -273,17 +273,18 @@ class IrRecv:
             else:
                 self.raw_data[-1].append(interval)
 
-        else: # val == IrRecv.VAL_OFF
+        else:  # val == IrRecv.VAL_OFF
             if self.raw_data == [] and interval < self.LEADER_MIN_USEC:
                 self.set_watchdog(self.WATCHDOG_CANCEL)
                 self.logger.debug('%d: leader is too short .. ignored',
-                                    interval)
+                                  interval)
                 return
             else:
                 self.raw_data.append([interval])
 
         self.logger.debug('raw_data=%s', self.raw_data)
-            
+
+
 #####
 class App:
     def __init__(self, pin, debug=False):
@@ -307,6 +308,7 @@ class App:
         self.logger.debug('')
         self.r.end()
 
+
 #####
 DEF_PIN = 27
 
@@ -327,6 +329,7 @@ def main(pin, debug):
     finally:
         logger.debug('finally')
         app.end()
+
 
 if __name__ == '__main__':
     main()

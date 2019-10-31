@@ -18,6 +18,7 @@
   },
   "buttons": {
     "on":  ["- [prefix] C03 [suffix]", 2],
-    "off": ["- [prefix] 40B [suffix]", 2]
+    "off": ["- [prefix] 40B [suffix]", 2],
+    "end of buttons": ""
   }
 }

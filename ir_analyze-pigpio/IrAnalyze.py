@@ -15,25 +15,25 @@ import json
 from MyLogger import MyLogger
 my_logger = MyLogger(__file__)
 
-#####
+
 class IrAnalyze:
     """
     raw_data = [[pulse1, space1], [pulse2, space2], ... ]
     """
     RAW_DATA_LEN_MIN = 6
-    
-    SIG_LONG =  99999 # usec
-    SIG_END  = 999999 # usec
 
-    SIG_CH		= {
-        'leader':	'-',
-        'leader?':	'=',
-        'zero':		'0',
-        'one':		'1',
-        'trailer':	'/',
-        'repeat':	'*',
-        'unknown':	'?'	}
-    SIG_STR_01	= SIG_CH['zero'] + SIG_CH['one']
+    SIG_LONG =  99999  # usec
+    SIG_END  = 999999  # usec
+
+    SIG_CH = {
+        'leader':  '-',
+        'leader?': '=',
+        'zero':    '0',
+        'one':     '1',
+        'trailer': '/',
+        'repeat':  '*',
+        'unknown': '?'}
+    SIG_STR_01 = SIG_CH['zero'] + SIG_CH['one']
 
     def __init__(self, raw_data=[], debug=False):
         """
@@ -47,55 +47,21 @@ class IrAnalyze:
         self.logger = my_logger.get_logger(__class__.__name__, debug)
         self.logger.debug('raw_data=%s', raw_data)
 
-        self.result     = None
-
-        self.get_raw_data(raw_data)
-
-    def get_raw_data(self, raw_data):
-        self.logger.debug('raw_data=%s', raw_data)
-
+        self.result   = None
         self.raw_data = raw_data
-        if self.raw_data == []:
-            return
-        
-        if len(self.raw_data[0]) == 1:
-            self.raw_data[-1].append(self.SIG_END)
-            self.logger.debug('raw_data=%s', raw_data)
-
-    def split_str(self, s, n):
-        """
-        文字列<s>の<n>文字毎にスペースを挿入
-
-        Parameters
-        ----------
-        s: str
-          source string
-        
-        n: int
-
-        Returns
-        -------
-        s: str
-          変換した文字列
-        """
-        self.logger.debug('s=%s, n=%d', s, n)
-
-        if n <= 0:
-            self.logger.warning('n=%d .. ignored', n)
-            return s
-        
-        s1 = ' '
-        for i in range(0, len(s), n):
-            s1 += s[i:i+n] + ' '
-        s = s1.strip()
-        return s
 
     def fq_dist(self, data, step=0.2):
         """
-        度数分布作成
+        (変則的な？)度数分布作成
+
+        Parameters
+        ----------
+        data: list
+        step: float
+
         """
         self.logger.debug('data=%s, step=%.1f', data, step)
-        
+
         fq_list = [[]]
         for val in sorted(data):
             if len(fq_list[-1]) > 0:
@@ -114,17 +80,17 @@ class IrAnalyze:
         """
         pulse, sleepには、誤差があるが、
         一組の (pulse + sleep) は、ほぼ正確と仮定。
-    
+
         真のパルス, スリープ時間を t_p, t_s、誤差 tdとしたとき、
           raw_data[pulse] + raw_data[sleep] = t_p + t_s
           raw_data[pulse] = t_p + td
           raw_data[sleep] = t_s - td
-           
+
         """
         self.logger.debug('raw_data=%s', raw_data)
 
         if raw_data != []:
-            self.get_raw_data(raw_data)
+            self.raw_data = raw_data
             self.logger.debug('raw_data=%s', self.raw_data)
 
         if len(raw_data) < self.RAW_DATA_LEN_MIN:
@@ -150,7 +116,7 @@ class IrAnalyze:
             if self.sum_list[i] in self.fq_list[0]:
                 self.T1['pulse'].append(self.raw_data[i][0])
                 self.T1['space'].append(self.raw_data[i][1])
-        self.T1_ave = {'pulse':[], 'space':[]}
+        self.T1_ave = {'pulse': [], 'space': []}
         # (pulse,spaceのTdの平均値を求めているが、pulseだけでも十分?)
         for key in ['pulse', 'space']:
             self.T1_ave[key] = sum(self.T1[key]) / len(self.T1[key])
@@ -179,15 +145,15 @@ class IrAnalyze:
 
         # 信号パターンの解析
         # 信号フォーマットの特定
-        self.sig_format = []	# 確定
-        self.sig_format2 = []	# 未確定(推定)
-        self.sig2n = {'leader':	[],
-                      'leader?':[],
-                      'zero':	[],
- 	              'one':	[],
-                      'trailer':[],
-	              'repeat':	[],
-                      'unknown':	[] }
+        self.sig_format  = []   # 確定
+        self.sig_format2 = []   # 未確定(推定)
+        self.sig2n = {'leader':  [],
+                      'leader?': [],
+                      'zero':    [],
+                      'one':     [],
+                      'trailer': [],
+                      'repeat':  [],
+                      'unknown': []}
         for i, [n1, n2] in enumerate(self.n_pattern):
             p = [n1, n2]
             # zero
@@ -300,7 +266,7 @@ class IrAnalyze:
         for i, sig in enumerate(self.sig_list):
             ch = self.SIG_CH[sig]
             self.sig_str += ch
-        self.logger.debug('sig_str=\'%s\'',       self.sig_str)
+        self.logger.debug('sig_str=\'%s\'', self.sig_str)
 
         # 信号文字列の中をさらに分割
         # 0,1の部分は分割しない
@@ -318,7 +284,10 @@ class IrAnalyze:
         for sig in self.sig_line:
             if sig[0] in self.SIG_STR_01:
                 if len(sig) % 4 == 0:
-                    sig = self.bin2hex(sig, n=4)
+                    # bin_str -> hex_str
+                    fmt = '0' + str(int(len(sig) / 4)) + 'X'
+                    sig = format(int(sig, 2), fmt)
+
                     self.sig_line1.append(sig)
                 else:
                     self.sig_line1.append(IrConfig.HEADER_BIN + sig)
@@ -326,35 +295,29 @@ class IrAnalyze:
                 self.sig_line1.append(sig)
         self.logger.debug('sig_line1=%s', self.sig_line1)
 
-        # 2進数部分を「右から」4桁毎に区切る
-        self.sig_line2 = []
-        for s in self.sig_line1:
-            if s.startswith(IrConfig.HEADER_BIN):
-                s1 = s[len(IrConfig.HEADER_BIN):]
-                s1 = s1[::-1]
-                s2 = ''
-                for i in range(len(s1)):
-                    s2 += s1[i]
-                    if i % 4 == 3:
-                        s2 += ' '
-                s = s2[::-1]
-                if s[0] == ' ':
-                    s = s[1:]
-                s = IrConfig.HEADER_BIN + s
-            self.sig_line2.append(s)
-        self.logger.debug('sig_line2=%s', self.sig_line2)
-                    
         # 再び文字列として連結
         self.sig_str2 = ''
-        for s in self.sig_line2:
+        for s in self.sig_line1:
             self.sig_str2 += s
         self.logger.debug('sig_str2=%s', self.sig_str2)
 
-        ### XXX
-        # エラーチェック
-        # T.B.D.
+        # 繰り返し判別
+        sig_repeat = []
+        s_list = self.sig_str2.split('-')
+        s_list.pop(0)
+        repeat_n = 0
+        for s in s_list:
+            if s == s_list[0]:
+                repeat_n += 1
+        if repeat_n > 1 and repeat_n == len(s_list):
+            # 繰り返し
+            sig_repeat = ['-' + s_list[0], repeat_n]
+            self.logger.debug('sig_repeat=%s', sig_repeat)
 
-        ### 結果のまとめ
+        # T.B.D.
+        # エラーチェック
+
+        # 結果のまとめ
         self.sig_format_result = ''
         if len(self.sig_format) == 0:
             if len(self.sig_format2) == 0:
@@ -365,13 +328,13 @@ class IrAnalyze:
 
             else:
                 self.sig_format_result = self.sig_format2
-                
+
         elif len(self.sig_format) == 1:
             self.sig_format_result = self.sig_format[0]
 
         else:
             self.sig_format_result = self.sig_format
-            
+
         self.result = {
             'comment': 'generated by ' + __class__.__name__,
             'dev_name': ['dev1'],
@@ -386,27 +349,10 @@ class IrAnalyze:
                 'button1': self.sig_str2
             }
         }
+        if len(sig_repeat) == 2:
+            self.result['buttons']['button1'] = sig_repeat
 
         return self.result
-
-    def bin2hex(self, b, n=2, lsb_first=False):
-        """
-        bit pattern strings to hex strings
-        """
-        self.logger.debug('b=%s, n=%d, lsb_first=%s', b, n, lsb_first)
-
-        if b[0] not in self.SIG_STR_01:
-            self.logger.warning('%s is not bit pattern', b)
-            return b
-
-        if lsb_first:
-            b = b[::-1] # 前後反転
-        hex_len = int((len(b) - 1) / 4) + 1
-        h = ('0' * hex_len + '%X' % int(b, 2))[-hex_len:]
-        h = self.split_str(h[::-1], n)
-        h = h[::-1]
-        self.logger.debug('h=%s', h)
-        return h
 
     def json_dumps(self, dev_list=None):
         """
@@ -433,7 +379,7 @@ class IrAnalyze:
         if dev_list == []:
             self.logger.waring('no data')
             return ''
-            
+
         json_str = '[\n'
         for dev_data in dev_list:
             json_str += '''{
@@ -452,10 +398,12 @@ class IrAnalyze:
   },
   "macro": {
     "[prefix]": "",
-    "[suffix]": ""
+    "[suffix]": "",
+    "[end of macro]":""
   },
   "buttons": {
-    "button1": "%s"
+    "button1": %s,
+    "end of buttons":""
   }
 }
 ,
@@ -470,17 +418,19 @@ class IrAnalyze:
        dev_data['sym_tbl']['/'],
        dev_data['sym_tbl']['*'],
        dev_data['sym_tbl']['?'],
-       dev_data['buttons']['button1'])
+       json.dumps(dev_data['buttons']['button1']))
 
         json_str = json_str[:-2] + ']\n'
 
         self.logger.debug('json_str=\'%s\'', json_str)
         return json_str
 
-####
+
+#####
 import threading
 import queue
 import os
+
 
 class App:
     """
@@ -491,12 +441,13 @@ class App:
 
     MSG_END = ''
 
-    def __init__(self, pin, debug=False):
+    def __init__(self, pin, n=0, debug=False):
         self.debug = debug
         self.logger = my_logger.get_logger(__class__.__name__, debug)
-        self.logger.debug('pin=%d', pin)
+        self.logger.debug('pin=%d, n=%d', pin, n)
 
         self.pin = pin
+        self.n   = n
 
         self.analyzer = IrAnalyze(debug=self.debug)
         self.receiver = IrRecv(self.pin, debug=self.debug)
@@ -537,12 +488,12 @@ class App:
                 dev_name1 = 'dev_' + str(self.serial_num)
                 dev_name2 = 'dev_' + ('%06d' % self.serial_num)
                 result['dev_name'] = [dev_name1, dev_name2]
-                print('%s,%s,%s' % (dev_name1, 
+                print('%s,%s,%s' % (dev_name1,
                                     result['format'],
                                     result['buttons']['button1']))
 
                 if self.serial_num == 1:
-                     dump_data = [ result ]
+                    dump_data = [result]
                 else:
                     with open(self.JSON_DUMP_FILE, 'r') as f:
                         dump_data = json.load(f)
@@ -550,7 +501,7 @@ class App:
 
                 json_str = self.analyzer.json_dumps(dump_data)
                 self.logger.debug('json_str=%s', json_str)
-                
+
                 with open(self.JSON_DUMP_FILE, 'w') as f:
                     f.write(json_str)
 
@@ -562,6 +513,10 @@ class App:
                     print('\'=\' in \'%s\' .. try again' %
                           result['sym_tbl']['='])
                     continue
+
+                if self.n > 0 and self.serial_num == self.n:
+                    self.logger.debug('serial_num=%d', self.serial_num)
+                    break
 
         self.logger.debug('done')
 
@@ -577,12 +532,17 @@ class App:
         """
         self.logger.debug('')
 
+        count = 0
         while True:
             raw_data = self.receiver.recv(verbose=True)
             self.logger.debug('raw_data=%s', raw_data)
             self.msgq.put(raw_data)
 
-                
+            count += 1
+            if self.n > 0 and count == self.n:
+                self.logger.debug('count=%d', count)
+                break
+
     def end(self):
         self.logger.debug('')
 
@@ -594,8 +554,10 @@ class App:
         self.receiver.end()
         self.logger.debug('done')
 
-    
-#### main
+
+#
+# main
+#
 from IrRecv import IrRecv
 DEF_PIN = 27
 
@@ -604,18 +566,20 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.command(context_settings=CONTEXT_SETTINGS,
                help='IR signal analyzer')
 @click.argument('pin', type=int, default=DEF_PIN)
+@click.option('-n', 'n', type=int, default=0)
 @click.option('--debug', '-d', 'debug', is_flag=True, default=False,
               help='debug flag')
-def main(pin, debug):
+def main(pin, n, debug):
     logger = my_logger.get_logger(__name__, debug)
-    logger.debug('pin=%d', pin)
+    logger.debug('pin=%d, n=%d', pin, n)
 
-    app = App(pin, debug=debug)
+    app = App(pin, n, debug=debug)
     try:
         app.main()
     finally:
         logger.debug('finally')
         app.end()
+
 
 if __name__ == '__main__':
     main()
