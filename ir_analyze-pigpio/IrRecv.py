@@ -38,12 +38,14 @@ class IrRecv:
 
     MSG_END         = ''
 
-    def __init__(self, pin, glitch_usec=GLITCH_USEC, debug=False):
+    def __init__(self, pin, glitch_usec=GLITCH_USEC, verbose=False,
+                 debug=False):
         """
         Parameters
         ----------
         pin: int
         glitch_usec: int
+        verbose: bool
         debug: bool
         """
         self.debug = debug
@@ -59,6 +61,7 @@ class IrRecv:
 
         self.receiving = False
         self.raw_data = []
+        self.verbose = verbose
 
         self.msgq = queue.Queue()
 
@@ -81,7 +84,7 @@ class IrRecv:
         受信用GPIOピン``pin``が変化するか、タイムアウトすると呼び出される。
 
         変化を検知すると、メッセージキューに格納し、
-        実際の処理はサブスレッドに任せる。
+        最小限の処理にとどめて、ほとんどの処理はサブスレッドに任せる。
 
         """
         self.logger.debug('pin=%d, val=%d, tick=%d', pin, val, tick)
@@ -101,107 +104,11 @@ class IrRecv:
             self.msgq.put(self.MSG_END)
 
             self.logger.debug('timeout!')
+            if self.verbose:
+                print('End of signal')
             return
 
         self.set_watchdog(self.WATCHDOG_MSEC)
-
-    def recv(self, verbose=False):
-        """
-        赤外線信号の受信
-
-        受信処理に必要なコールバックとサブスレッド``th_worker``を生成し、
-        サブスレッドが終了するまで待つ。
-
-        Parameters
-        ----------
-        verbose: boolean
-          受信状態表示スイッチ
-
-        """
-        self.logger.debug('')
-
-        self.raw_data  = []
-        self.receiving = True
-
-        self.th_worker = threading.Thread(target=self.worker, daemon=True)
-        self.th_worker.start()
-
-        self.cb_recv = self.pi.callback(self.pin, pigpio.EITHER_EDGE,
-                                        self.cb_func_recv)
-
-        if verbose:
-            print('Ready')
-
-        """
-        while self.receiving:
-            time.sleep(0.1)
-        """
-        # スレッドが終了するまで待つ
-        self.th_worker.join()
-        self.cb_recv.cancel()
-
-        if verbose:
-            print('Done')
-
-        return self.raw_data
-
-    def end(self):
-        """
-        終了処理
-        """
-        self.logger.debug('')
-        self.cb_recv.cancel()
-        self.pi.stop()
-
-        if self.th_worker.is_alive():
-            self.msgq.put(self.MSG_END)
-            self.logger.debug('join()')
-            self.th_worker.join()
-
-        self.logger.debug('done')
-
-    def raw2pulse_space(self, raw_data=None):
-        """
-        リスト形式のデータをテキストに変換。
-
-        Parameters
-        ----------
-        raw_data: [[pulse1, space1], [pulse2, space2], ..]
-          引数で与えられなかった場合は、最後に受信したデータを使用する。
-
-        Returns
-        -------
-        pulse_space: str
-          pulse p1(us)
-          space s1(us)
-          pulse p2(us)
-          space s2(us)
-          :
-        """
-        self.logger.debug('row_data=%s', raw_data)
-
-        if raw_data is None:
-            raw_data = self.raw_data
-            self.logger.debug('raw_data=%s', raw_data)
-
-        pulse_space = ''
-
-        for (p, s) in raw_data:
-            pulse_space += '%s %d\n' % (self.VAL_STR[0], p)
-            pulse_space += '%s %d\n' % (self.VAL_STR[1], s)
-
-        return pulse_space
-
-    def print_pulse_space(self, raw_data=None):
-        """
-        """
-        self.logger.debug('raw_data=%s', raw_data)
-
-        if raw_data is None:
-            raw_data = self.raw_data
-            self.logger.debug('raw_data=%s', raw_data)
-
-        print(self.raw2pulse_space(raw_data), end='')
 
     def worker(self):
         """
@@ -227,6 +134,8 @@ class IrRecv:
         """
         GPIOの値の変化に応じて、
         赤外線信号のON/OFF時間を``self.raw_data``に記録する。
+
+        self.raw_data: [[pulse1, space1], [pulse2, space2], ..]
 
         Parameters
         ----------
@@ -262,18 +171,17 @@ class IrRecv:
             self.logger.debug('interval=%d', interval)
 
         if val == IrRecv.VAL_ON:
+            # end of space
             if self.raw_data == []:
-                """
-                if interval < self.INTERVAL_MAX:
-                    self.logger.warning('%d: orphan space .. ignored',
-                                        interval)
-                """
                 self.logger.debug('start raw_data')
+                if self.verbose:
+                    print('Start of signal')
                 return
             else:
                 self.raw_data[-1].append(interval)
 
         else:  # val == IrRecv.VAL_OFF
+            # end of pulse
             if self.raw_data == [] and interval < self.LEADER_MIN_USEC:
                 self.set_watchdog(self.WATCHDOG_CANCEL)
                 self.logger.debug('%d: leader is too short .. ignored',
@@ -284,6 +192,115 @@ class IrRecv:
 
         self.logger.debug('raw_data=%s', self.raw_data)
 
+    def recv(self):
+        """
+        赤外線信号の受信
+
+        受信処理に必要なコールバックとサブスレッド``th_worker``を生成し、
+        サブスレッドが終了するまで待つ。
+
+        """
+        self.logger.debug('')
+
+        self.raw_data  = []
+        self.receiving = True
+
+        self.th_worker = threading.Thread(target=self.worker, daemon=True)
+        self.th_worker.start()
+
+        self.cb_recv = self.pi.callback(self.pin, pigpio.EITHER_EDGE,
+                                        self.cb_func_recv)
+
+        if self.verbose:
+            print('Ready')
+
+        """
+        while self.receiving:
+            time.sleep(0.1)
+        """
+        # スレッドが終了するまで待つ
+        self.th_worker.join()
+        self.cb_recv.cancel()
+
+        if self.verbose:
+            print('Done')
+
+        return self.raw_data
+
+    def end(self):
+        """
+        終了処理
+
+        コールバックをキャンセルし、
+        ``worker``スレッドがaliveの場合は、終了メッセージを送り、終了を待つ。
+        """
+        self.logger.debug('')
+        self.cb_recv.cancel()
+        self.pi.stop()
+
+        if self.th_worker.is_alive():
+            self.msgq.put(self.MSG_END)
+            self.logger.debug('join()')
+            self.th_worker.join()
+
+        self.logger.debug('done')
+
+    def raw2pulse_space(self, raw_data=None):
+        """
+        リスト形式のデータをテキストに変換。
+
+        Parameters
+        ----------
+        raw_data: [[p1, s1], [p2, s2], ..]
+          引数で与えられなかった場合は、最後に受信したデータを使用する。
+
+        Returns
+        -------
+        pulse_space: str
+          pulse p1
+          space s1
+          pulse p2
+          space s2
+          :
+        """
+        self.logger.debug('row_data=%s', raw_data)
+
+        if raw_data is None:
+            raw_data = self.raw_data
+            self.logger.debug('raw_data=%s', raw_data)
+
+        pulse_space = ''
+
+        for (p, s) in raw_data:
+            pulse_space += '%s %d\n' % (self.VAL_STR[0], p)
+            pulse_space += '%s %d\n' % (self.VAL_STR[1], s)
+
+        return pulse_space
+
+    def print_pulse_space(self, raw_data=None):
+        """
+        ``raw_data``の内容を下記の書式でテキスト出力する。
+
+        pulse p1
+        space s1
+        pulse p2
+        space s2
+        :
+
+        Parameters
+        ----------
+        raw_data: list
+          [[p1, s1], [p2, s2], .. ]
+
+        """
+        self.logger.debug('raw_data=%s', raw_data)
+
+        if raw_data is None:
+            raw_data = self.raw_data
+            self.logger.debug('raw_data=%s', raw_data)
+
+        print(self.raw2pulse_space(raw_data), end='')
+
 
 #####
 class App:
@@ -292,14 +309,14 @@ class App:
         self.logger = my_logger.get_logger(__class__.__name__, self.debug)
         self.logger.debug('pin=%d', pin)
 
-        self.r = IrRecv(pin, debug=self.debug)
+        self.r = IrRecv(pin, verbose=True, debug=self.debug)
 
     def main(self):
         self.logger.debug('')
 
         while True:
             print('# -')
-            raw_data = self.r.recv(verbose=True)
+            raw_data = self.r.recv()
             self.r.print_pulse_space(raw_data)
             print('# /')
             time.sleep(.5)
