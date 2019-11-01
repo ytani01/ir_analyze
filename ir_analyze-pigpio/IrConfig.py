@@ -10,19 +10,26 @@ __date__   = '2019'
 
 import json
 from pathlib import Path
-
-#####
-from MyLogger import MyLogger
-my_logger = MyLogger(__file__)
+import MyLogger
 
 
 #####
 class IrConfig:
     """
-    data      := [{data_ent1}, {data_ent2}, ..}
-    data_ent  := {'file': 'file_name1', 'data': 'conf_data1'}
-    conf_data :=
-    {
+    設定情報関連
+
+    読み込んだデータは、ファイル名情報を付加して、
+    下記 ``data``の形式で保持する。
+
+    irconfファイルの書式: JSON
+    --------------------------
+    下記 ``conf_data`` 一つ、または、``conf_data``のリスト。
+
+    データ構造
+    ----------
+    data      := [data_ent1, data_ent2, .. ]
+    data_ent  := {'file': 'file_name1', 'data': conf_data1}
+    conf_data := {
       "comment": "comment text",
       "dev_name": ["dev_name1", "dev_name2"],
       "format:": "{AEHA|NEC|AEHA|DYSON}"      # optional
@@ -55,7 +62,7 @@ class IrConfig:
 
     def __init__(self, conf_dir=None, load_all=False, debug=False):
         self.debug = debug
-        self.logger = my_logger.get_logger(__class__.__name__, self.debug)
+        self.logger = MyLogger.get_logger(__class__.__name__, self.debug)
         self.logger.debug('conf_dir=%s', conf_dir)
 
         if conf_dir is None:
@@ -72,12 +79,19 @@ class IrConfig:
         if load_all:
             self.load_all()
 
-    def get_pulse_space(self, dev_name, button_name):
+    def get_raw_data(self, dev_name, button_name):
         """
+        デバイス情報を取得して、[pulse, space] のリストを返す。
+
         Parameters
         ----------
         dev_name: str
         button_name: str
+
+        Returns
+        -------
+        raw_data: list
+          [[p1, s1], [p2, s2], .. ]
 
         """
         self.logger.debug('dev_name=%s, button_name=%s', dev_name, button_name)
@@ -176,22 +190,32 @@ class IrConfig:
         self.logger.debug('sig_str2=%s', sig_str2)
 
         #
-        # make pulse,space list (p_s_list)
+        # make pulse,space list (raw_data)
         #
-        p_s_list = []
+        raw_data = []
         t = dev_data['T']
         for ch in sig_str2:
             if ch not in dev_data['sym_tbl']:
                 self.logger.warning('ch=%s !? .. ignored', ch)
                 continue
             (pulse, space) = dev_data['sym_tbl'][ch][0]
-            p_s_list.append(pulse * t)
-            p_s_list.append(space * t)
-        self.logger.debug('p_s_list=%s', p_s_list)
+            raw_data.append([pulse * t, space * t])
+        self.logger.debug('raw_data=%s', raw_data)
 
-        return p_s_list
+        return raw_data
 
     def get_dev(self, dev_name):
+        """
+        デバイス情報取得
+
+        Parameters
+        ----------
+        dev_name: str2
+
+        Returns
+        d_ent: dict
+          {'file': file_name, 'data': conf_data}
+        """
         self.logger.debug('dev_name=%s', dev_name)
 
         for d_ent in self.data:
@@ -216,6 +240,14 @@ class IrConfig:
         return None
 
     def load_all(self):
+        """
+        全てのirconfファイルを読み込む
+
+        Returns
+        -------
+        result: bool
+
+        """
         self.logger.debug('')
 
         files = []
@@ -231,7 +263,7 @@ class IrConfig:
         return True
 
     def load_json_dump(self, file_name):
-        ''' [現在は不要 ?]
+        """ [現在は不要 ?]
         ``file_name``から読み込んだ不完全な JSONリストを修正して、
         JSONパーサーが読めるようにする。
 
@@ -241,7 +273,7 @@ class IrConfig:
         ----------
         file_name: str
 
-        '''
+        """
         self.logger.debug('file_name=%s', file_name)
 
         with open(file_name, 'r') as f:
@@ -260,6 +292,14 @@ class IrConfig:
         return data
 
     def load(self, file_name):
+        """
+        irconfファイル ``file_name``を読み込む
+
+        Returns
+        -------
+        self.data: dict
+
+        """
         self.logger.debug('file_name=%s', file_name)
 
         try:
@@ -296,7 +336,7 @@ class App:
     """
     def __init__(self, debug=False):
         self.debug = debug
-        self.logger = my_logger.get_logger(__class__.__name__, debug)
+        self.logger = MyLogger.get_logger(__class__.__name__, debug)
         self.logger.debug('')
 
     def main(self, dev_name, button, conf_file):
@@ -355,7 +395,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--debug', '-d', 'debug', is_flag=True, default=False,
               help='debug flag')
 def main(dev_name, button, conf_file, debug):
-    logger = my_logger.get_logger(__name__, debug)
+    logger = MyLogger.get_logger(__name__, debug)
     logger.debug('dev_name=%s, button=%s, file=%s',
                  dev_name, button, conf_file)
 

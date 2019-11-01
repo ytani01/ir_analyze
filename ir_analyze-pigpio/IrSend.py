@@ -12,10 +12,7 @@ __date__   = '2019'
 from IrConfig import IrConfig
 import pigpio
 import time
-
-#####
-from MyLogger import MyLogger
-my_logger = MyLogger(__file__)
+import MyLogger
 
 #####
 DEF_PIN = 22
@@ -30,7 +27,7 @@ class WaveForm:
 
     def __init__(self, pin, debug=False):
         self.debug = debug
-        self.logger = my_logger.get_logger(__class__.__name__, debug)
+        self.logger = MyLogger.get_logger(__class__.__name__, debug)
         self.logger.debug('pin=%d', pin)
 
         self.pin = pin
@@ -112,7 +109,7 @@ class Wave(WaveForm):
 
     def __init__(self, pi, pin, debug=False):
         self.debug = debug
-        self.logger = my_logger.get_logger(__class__.__name__, debug)
+        self.logger = MyLogger.get_logger(__class__.__name__, debug)
         self.logger.debug('pin: %d', pin)
 
         self.pi  = pi
@@ -149,7 +146,7 @@ class IrSend:
 
     def __init__(self, pin, load_conf=False, debug=False):
         self.debug = debug
-        self.logger = my_logger.get_logger(__class__.__name__, debug)
+        self.logger = MyLogger.get_logger(__class__.__name__, debug)
         self.logger.debug('pin: %d', pin)
 
         self.pin = pin
@@ -233,29 +230,30 @@ class IrSend:
 
         return self.space_wave_hash[usec]
 
-    def send_pulse_space(self, sig):
+    def send_raw_data(self, raw_data):
         """
-        sig = [pulse1, space1, pulse2, space2, .. ]
+        Parameters
+        ----------
+        raw_data: list
+          [[pulse1, space1], [pulse2, space2], .. ]
         """
-        self.logger.debug('sig=%s', sig)
+        self.logger.debug('raw_data=%s', raw_data)
 
-        if len(sig) <= self.SIG_BITS_MIN * 2:
-            if len(sig) == 0:
-                self.logger.debug('%s: no signal', sig)
-            self.logger.warning('sig is too short: %s .. ignored', sig)
+        if len(raw_data) <= self.SIG_BITS_MIN:
+            if len(raw_data) == 0:
+                self.logger.debug('%s: no signal', raw_data)
+            self.logger.warning('sig is too short: %s .. ignored', raw_data)
             return False
 
         self.clear_wave_hash()
         w = []
 
         total_us = 0
-        for i, us in enumerate(sig):
-            total_us += us
+        for pulse, space in raw_data:
+            total_us += pulse + space
 
-            if i % 2 == 0:
-                w.append(self.create_pulse_wave(us))
-            else:
-                w.append(self.create_space_wave(us))
+            w.append(self.create_pulse_wave(pulse))
+            w.append(self.create_space_wave(space))
         self.logger.debug('total_us: %d', total_us)
 
         self.pi.wave_chain(w)
@@ -281,13 +279,13 @@ class IrSend:
         if self.irconf is None:
             self.irconf = IrConfig(load_all=True, debug=self.debug)
 
-        pulse_space = self.irconf.get_pulse_space(dev_name, button_name)
-        if pulse_space == []:
+        raw_data = self.irconf.get_raw_data(dev_name, button_name)
+        if raw_data == []:
             return False
-        if type(pulse_space[0]) == str:
-            self.logger.error(pulse_space[0])
+        if type(raw_data[0]) == str:
+            self.logger.error(raw_data[0])
             return False
-        return self.send_pulse_space(pulse_space)
+        return self.send_raw_data(raw_data)
 
 
 #####
@@ -302,7 +300,7 @@ class App:
 
     def __init__(self, args, n, interval, pin, debug=False):
         self.debug = debug
-        self.logger = my_logger.get_logger(__class__.__name__, self.debug)
+        self.logger = MyLogger.get_logger(__class__.__name__, self.debug)
         self.logger.debug('args=%s, n=%d, interval=%d, pin=%d',
                           args, n, interval, pin)
 
@@ -442,7 +440,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--debug', '-d', 'debug', is_flag=True, default=False,
               help='debug flag')
 def main(args, pin, interval, n, debug):
-    logger = my_logger.get_logger(__name__, debug)
+    logger = MyLogger.get_logger(__name__, debug)
     logger.debug('args=%s, n=%d, interval=%f, pin=%d',
                  args, n, interval, pin)
 

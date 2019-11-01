@@ -13,10 +13,7 @@ import pigpio
 import time
 import queue
 import threading
-
-#####
-from MyLogger import MyLogger
-my_logger = MyLogger(__file__)
+import MyLogger
 
 
 #####
@@ -49,7 +46,7 @@ class IrRecv:
         debug: bool
         """
         self.debug = debug
-        self.logger = my_logger.get_logger(__class__.__name__, self.debug)
+        self.logger = MyLogger.get_logger(__class__.__name__, self.debug)
         self.logger.debug('pin=%d, glitch_usec=%d', pin, glitch_usec)
 
         self.pin = pin
@@ -104,8 +101,6 @@ class IrRecv:
             self.msgq.put(self.MSG_END)
 
             self.logger.debug('timeout!')
-            if self.verbose:
-                print('End of signal')
             return
 
         self.set_watchdog(self.WATCHDOG_MSEC)
@@ -174,8 +169,6 @@ class IrRecv:
             # end of space
             if self.raw_data == []:
                 self.logger.debug('start raw_data')
-                if self.verbose:
-                    print('Start of signal')
                 return
             else:
                 self.raw_data[-1].append(interval)
@@ -306,7 +299,7 @@ class IrRecv:
 class App:
     def __init__(self, pin, debug=False):
         self.debug = debug
-        self.logger = my_logger.get_logger(__class__.__name__, self.debug)
+        self.logger = MyLogger.get_logger(__class__.__name__, self.debug)
         self.logger.debug('pin=%d', pin)
 
         self.r = IrRecv(pin, verbose=True, debug=self.debug)
@@ -337,7 +330,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--debug', '-d', 'debug', is_flag=True, default=False,
               help='debug flag')
 def main(pin, debug):
-    logger = my_logger.get_logger(__name__, debug)
+    logger = MyLogger.get_logger(__name__, debug)
     logger.debug('pin: %d', pin)
 
     app = App(pin, debug=debug)
